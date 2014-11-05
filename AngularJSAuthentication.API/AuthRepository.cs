@@ -15,9 +15,8 @@ namespace AngularJSAuthentication.API
 
     public class AuthRepository : IDisposable
     {
-        private AuthContext _ctx;
-
-        private UserManager<IdentityUser> _userManager;
+        private readonly AuthContext _ctx;
+        private readonly UserManager<IdentityUser> _userManager;
 
         public AuthRepository()
         {

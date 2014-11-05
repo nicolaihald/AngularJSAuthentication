@@ -1,9 +1,7 @@
 namespace AngularJSAuthentication.API.Migrations
 {
     using AngularJSAuthentication.API.Entities;
-    using System;
     using System.Collections.Generic;
-    using System.Data.Entity;
     using System.Data.Entity.Migrations;
     using System.Linq;
 
@@ -25,7 +23,7 @@ namespace AngularJSAuthentication.API.Migrations
             context.SaveChanges();
         }
 
-        private static List<Client> BuildClientsList()
+        private static IEnumerable<Client> BuildClientsList()
         {
 
             List<Client> ClientsList = new List<Client> 
@@ -37,7 +35,8 @@ namespace AngularJSAuthentication.API.Migrations
                     ApplicationType =  Models.ApplicationTypes.JavaScript, 
                     Active = true, 
                     RefreshTokenLifeTime = 7200, 
-                    AllowedOrigin = "http://ngauthenticationweb.azurewebsites.net"
+                    //AllowedOrigin = "http://ngauthenticationweb.azurewebsites.net"
+                    AllowedOrigin = "http://localhost:32150"
                 },
                 new Client
                 { Id = "consoleApp", 
