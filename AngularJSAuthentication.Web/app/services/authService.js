@@ -60,14 +60,22 @@ app.factory('authService', ['$http', '$q', 'localStorageService', 'ngAuthSetting
     };
 
     var _logOut = function () {
-
         localStorageService.remove('authorizationData');
-
         _authentication.isAuth = false;
         _authentication.userName = "";
         _authentication.useRefreshTokens = false;
-
     };
+
+    //var _logOut = function () {
+
+    //    return $http.post(serviceBase + 'api/account/signout').then(function (results) {
+
+    //        localStorageService.remove('authorizationData');
+    //        _authentication.isAuth = false;
+    //        _authentication.userName = "";
+    //        _authentication.useRefreshTokens = false;
+    //    });
+    //};
 
     var _fillAuthData = function () {
 

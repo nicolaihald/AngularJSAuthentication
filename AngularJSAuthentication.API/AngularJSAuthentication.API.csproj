@@ -169,6 +169,12 @@
       <DependentUpon>201407121205456_AddClientsAndRefreshTokenTables.cs</DependentUpon>
     </EmbeddedResource>
   </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\AngularJSAuthentication.UniLoginAuth\AngularJSAuthentication.UniLoginAuth.csproj">
+      <Project>{AD3EF71F-1A0C-4F5C-B34D-92381412C0CD}</Project>
+      <Name>AngularJSAuthentication.UniLoginAuth</Name>
+    </ProjectReference>
+  </ItemGroup>
   <PropertyGroup>
     <VisualStudioVersion Condition="'$(VisualStudioVersion)' == ''">10.0</VisualStudioVersion>
     <VSToolsPath Condition="'$(VSToolsPath)' == ''">$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)</VSToolsPath>
