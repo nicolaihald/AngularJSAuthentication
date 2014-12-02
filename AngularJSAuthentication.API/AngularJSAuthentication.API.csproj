@@ -28,6 +28,7 @@
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
+    <UseVSHostingProcess>true</UseVSHostingProcess>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>pdbonly</DebugType>
@@ -170,6 +171,10 @@
     </EmbeddedResource>
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\AngularJSAuthentication.EkeyAuth\AngularJSAuthentication.EkeyAuth.csproj">
+      <Project>{458edb57-8cde-44c7-bcb3-54326c696936}</Project>
+      <Name>AngularJSAuthentication.EkeyAuth</Name>
+    </ProjectReference>
     <ProjectReference Include="..\AngularJSAuthentication.UniLoginAuth\AngularJSAuthentication.UniLoginAuth.csproj">
       <Project>{AD3EF71F-1A0C-4F5C-B34D-92381412C0CD}</Project>
       <Name>AngularJSAuthentication.UniLoginAuth</Name>

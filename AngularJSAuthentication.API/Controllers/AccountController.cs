@@ -309,12 +309,23 @@ namespace AngularJSAuthentication.API.Controllers
             {
                 verifyTokenEndPoint = string.Format("https://www.googleapis.com/oauth2/v1/tokeninfo?access_token={0}", accessToken);
             }
+            else if (provider == "Ekey")
+            {
+                verifyTokenEndPoint = string.Format("http://test-loginconnector.gyldendal.dk/api/tokeninfo?access_token={0}", accessToken);
+            }
             else
             {
                 return null;
             }
 
-            var client = new HttpClient();
+            //var httpClientHandler = new HttpClientHandler
+            //{
+            //    Proxy = new WebProxy("http://localhost:8888", false),
+            //    UseProxy = true
+            //};
+            //var client = new HttpClient(httpClientHandler);      
+      
+            var client = new HttpClient();            
             var uri = new Uri(verifyTokenEndPoint);
             var response = await client.GetAsync(uri);
 
@@ -331,7 +342,7 @@ namespace AngularJSAuthentication.API.Controllers
                     parsedToken.user_id = jObj["data"]["user_id"];
                     parsedToken.app_id = jObj["data"]["app_id"];
 
-                    if (!string.Equals(Startup.facebookAuthOptions.AppId, parsedToken.app_id, StringComparison.OrdinalIgnoreCase))
+                    if (!string.Equals(Startup.FacebookAuthOptions.AppId, parsedToken.app_id, StringComparison.OrdinalIgnoreCase))
                     {
                         return null;
                     }
@@ -341,11 +352,23 @@ namespace AngularJSAuthentication.API.Controllers
                     parsedToken.user_id = jObj["user_id"];
                     parsedToken.app_id = jObj["audience"];
 
-                    if (!string.Equals(Startup.googleAuthOptions.ClientId, parsedToken.app_id, StringComparison.OrdinalIgnoreCase))
+                    if (!string.Equals(Startup.GoogleAuthOptions.ClientId, parsedToken.app_id, StringComparison.OrdinalIgnoreCase))
                     {
                         return null;
                     }
 
+                }
+
+                if (provider == "Ekey")
+                {
+                    parsedToken.user_id = jObj["UserLoggedInInfo"]["UserIdentifier"];
+                    parsedToken.app_id = jObj["UserLoggedInInfo"]["LoginProvider"];
+                    //parsedToken.app_id = jObj["UserLoggedInInfo"]["app_id"];
+
+                    if (!string.Equals(Startup.FacebookAuthOptions.AppId, parsedToken.app_id, StringComparison.OrdinalIgnoreCase))
+                    {
+                        return null;
+                    }
                 }
 
             }

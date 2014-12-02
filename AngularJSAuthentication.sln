@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 2013
-VisualStudioVersion = 12.0.30723.0
+VisualStudioVersion = 12.0.31101.0
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AngularJSAuthentication.API", "AngularJSAuthentication.API\AngularJSAuthentication.API.csproj", "{23DFCFD5-B158-4C0D-9C31-5E9CB64C64CF}"
 EndProject
@@ -12,6 +12,8 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AngularJSAuthentication.UniLoginAuth", "AngularJSAuthentication.UniLoginAuth\AngularJSAuthentication.UniLoginAuth.csproj", "{AD3EF71F-1A0C-4F5C-B34D-92381412C0CD}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Middleware", "Middleware", "{53EF9CF6-3A24-4EEF-BC43-05119E70904E}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AngularJSAuthentication.EkeyAuth", "AngularJSAuthentication.EkeyAuth\AngularJSAuthentication.EkeyAuth.csproj", "{458EDB57-8CDE-44C7-BCB3-54326C696936}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -35,11 +37,16 @@ Global
 		{AD3EF71F-1A0C-4F5C-B34D-92381412C0CD}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{AD3EF71F-1A0C-4F5C-B34D-92381412C0CD}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{AD3EF71F-1A0C-4F5C-B34D-92381412C0CD}.Release|Any CPU.Build.0 = Release|Any CPU
+		{458EDB57-8CDE-44C7-BCB3-54326C696936}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{458EDB57-8CDE-44C7-BCB3-54326C696936}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{458EDB57-8CDE-44C7-BCB3-54326C696936}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{458EDB57-8CDE-44C7-BCB3-54326C696936}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{AD3EF71F-1A0C-4F5C-B34D-92381412C0CD} = {53EF9CF6-3A24-4EEF-BC43-05119E70904E}
+		{458EDB57-8CDE-44C7-BCB3-54326C696936} = {53EF9CF6-3A24-4EEF-BC43-05119E70904E}
 	EndGlobalSection
 EndGlobal
