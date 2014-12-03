@@ -1,4 +1,5 @@
-﻿using AngularJSAuthentication.API.Models;
+﻿using System.Text;
+using AngularJSAuthentication.API.Models;
 using AngularJSAuthentication.API.Results;
 using Microsoft.AspNet.Identity;
 using Microsoft.AspNet.Identity.EntityFramework;
@@ -295,6 +296,7 @@ namespace AngularJSAuthentication.API.Controllers
         private async Task<ParsedExternalAccessToken> VerifyExternalAccessToken(string provider, string accessToken)
         {
             ParsedExternalAccessToken parsedToken = null;
+            var client = new HttpClient();
 
             var verifyTokenEndPoint = "";
 
@@ -311,7 +313,36 @@ namespace AngularJSAuthentication.API.Controllers
             }
             else if (provider == "Ekey")
             {
-                verifyTokenEndPoint = string.Format("http://test-loginconnector.gyldendal.dk/api/tokeninfo?access_token={0}", accessToken);
+                verifyTokenEndPoint = string.Format("https://test-loginconnector.gyldendal.dk/api/LoggedInfo/GetAuthInfo?access_token={0}", accessToken);
+
+                // TEMP HACK:
+                var requestData = (dynamic)new JObject();
+                requestData.subscriptionAuthentToken = accessToken;
+                requestData.clientWebShopName = Startup.EkeyAuthOptions.AppId;
+                requestData.SharedSecret = Startup.EkeyAuthOptions.AppSecret;
+
+                var loggedInfoRequest = new HttpRequestMessage(HttpMethod.Post, verifyTokenEndPoint);
+                loggedInfoRequest.Content = new StringContent(requestData.ToString(), Encoding.UTF8, "application/json");
+                loggedInfoRequest.Headers.Add("User-Agent", "OWIN Ekey OAuth Provider");
+                loggedInfoRequest.Headers.Add("LOGINCONNECTORAPIKEY", Startup.EkeyAuthOptions.ConnectorApiKey);
+
+                HttpResponseMessage loggedInfoResponse = await client.SendAsync(loggedInfoRequest);
+                loggedInfoResponse.EnsureSuccessStatusCode();
+                var text = await loggedInfoResponse.Content.ReadAsStringAsync();
+
+                JObject user = JObject.Parse(text);
+                JToken userInfo = user["UserLoggedInInfo"][0];
+
+                if (userInfo != null)
+                {
+                    var notValidatedToken = new ParsedExternalAccessToken();
+
+                    notValidatedToken.user_id = userInfo.Value<string>("UserIdentifier");
+                    notValidatedToken.app_id = Startup.EkeyAuthOptions.AppId;
+                    
+                    return notValidatedToken;
+                }
+
             }
             else
             {
@@ -319,7 +350,6 @@ namespace AngularJSAuthentication.API.Controllers
             }
 
 
-            var client = new HttpClient();            
             var uri = new Uri(verifyTokenEndPoint);
             var response = await client.GetAsync(uri);
 
