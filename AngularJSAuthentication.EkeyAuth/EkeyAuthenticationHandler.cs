@@ -20,6 +20,7 @@ namespace AngularJSAuthentication.EkeyAuth
         private const string XmlSchemaString = "http://www.w3.org/2001/XMLSchema#string";
         private const string TokenEndpoint = "https://test-loginconnector.gyldendal.dk/api/AlreadyLoggedIn";
         private const string UserInfoEndpoint = "https://test-loginconnector.gyldendal.dk/api/LoggedInfo";
+        private const string UserSubscriptionsEndpoint = "https://test-loginconnector.gyldendal.dk/api/subscriptions/GetAllSubsciptions";
 
         private readonly HttpClient _httpClient;
         private readonly ILogger _logger;
@@ -83,6 +84,7 @@ namespace AngularJSAuthentication.EkeyAuth
                 string requestPrefix = Request.Scheme + "://" + Request.Host;
                 string redirectUri = requestPrefix + Request.PathBase + Options.CallbackPath;
 
+                #region --- HOW IT SHOULD HAVE BEEN: ---
                 // Build up the body for the token request
                 //var body = new List<KeyValuePair<string, string>>();
                 //body.Add(new KeyValuePair<string, string>("grant_type", "authorization_code"));
@@ -99,6 +101,8 @@ namespace AngularJSAuthentication.EkeyAuth
                 // Deserializes the token response:
                 //dynamic response = JsonConvert.DeserializeObject<dynamic>(text);
                 //string accessToken = (string)response.access_token;
+                
+                #endregion
 
                 var formData = await Request.ReadFormAsync();
                 var accessToken = formData["authenticationToken"];
@@ -116,35 +120,54 @@ namespace AngularJSAuthentication.EkeyAuth
                 //JObject foo = JObject.Parse(text);
 
 
-                var requestData = (dynamic)new JObject();
-                requestData.subscriptionAuthentToken = accessToken;
-                requestData.clientWebShopName        = Options.AppId;
-                requestData.SharedSecret             = Options.AppSecret;
-                requestData.isbn                     = null;
-                requestData.ProductIds               = null;
+                #region --- REQUEST USER INFO: ---
+                var userinfoRequestData = (dynamic)new JObject();
+                userinfoRequestData.subscriptionAuthentToken = accessToken;
+                userinfoRequestData.clientWebShopName = Options.AppId;
+                userinfoRequestData.SharedSecret = Options.AppSecret;
+                //userinfoRequestData.isbn                     = null;
+                //userinfoRequestData.ProductIds               = null;
 
-                var json = requestData.ToString();
+                var userinfoRequest = new HttpRequestMessage(HttpMethod.Post, UserInfoEndpoint)
+                {
+                    Content = new StringContent(userinfoRequestData.ToString(), Encoding.UTF8, "application/json")
+                };
+                userinfoRequest.Headers.Add("User-Agent", "OWIN Ekey OAuth Provider");
+                userinfoRequest.Headers.Add("LOGINCONNECTORAPIKEY", Options.ConnectorApiKey);
 
-                var loggedInfoRequest = new HttpRequestMessage(HttpMethod.Post, UserInfoEndpoint);
-                loggedInfoRequest.Content = new StringContent(json, Encoding.UTF8, "application/json");
-                loggedInfoRequest.Headers.Add("User-Agent", "OWIN Ekey OAuth Provider");
-                loggedInfoRequest.Headers.Add("LOGINCONNECTORAPIKEY", Options.ConnectorApiKey);
+                HttpResponseMessage userinfoResponse = await _httpClient.SendAsync(userinfoRequest, Request.CallCancelled);
+                userinfoResponse.EnsureSuccessStatusCode();
+                var userinfoContent = await userinfoResponse.Content.ReadAsStringAsync();
+                JObject user = JObject.Parse(userinfoContent);
+                
+                #endregion
 
-                HttpResponseMessage loggedInfoResponse = await _httpClient.SendAsync(loggedInfoRequest, Request.CallCancelled);
-                loggedInfoResponse.EnsureSuccessStatusCode();
-                var text = await loggedInfoResponse.Content.ReadAsStringAsync();
-                JObject user = JObject.Parse(text);
+                #region --- REQUEST USER SUBSCRIPTIONS: ---
+                var subscriptionsRequestData = (dynamic)new JObject();
+                subscriptionsRequestData.subscriptionAuthentToken = accessToken;
+                subscriptionsRequestData.clientWebShopName = Options.AppId;
+
+                var subscriptionsRequest = new HttpRequestMessage(HttpMethod.Post, UserSubscriptionsEndpoint)
+                {
+                    Content = new StringContent(subscriptionsRequestData.ToString(), Encoding.UTF8, "application/json")
+                };
+                subscriptionsRequest.Headers.Add("User-Agent", "OWIN Ekey OAuth Provider");
+                subscriptionsRequest.Headers.Add("LOGINCONNECTORAPIKEY", Options.ConnectorApiKey);
+
+                HttpResponseMessage subscriptionsResponse = await _httpClient.SendAsync(subscriptionsRequest, Request.CallCancelled);
+                subscriptionsResponse.EnsureSuccessStatusCode();
+                var subscriptionsContent = await subscriptionsResponse.Content.ReadAsStringAsync();
+                JObject subscriptions = JObject.Parse(subscriptionsContent);
+                
+                #endregion
+
+                var context = new EkeyAuthenticatedContext(Context, user, subscriptions, accessToken)
+                {
+                    Identity = new ClaimsIdentity(Options.AuthenticationType, ClaimsIdentity.DefaultNameClaimType, ClaimsIdentity.DefaultRoleClaimType)
+                };
 
 
-                // 
-                JObject subscriptions = JObject.Parse("{}");
-
-
-                var context = new EkeyAuthenticatedContext(Context, user, subscriptions, accessToken);
-                context.Identity = new ClaimsIdentity(Options.AuthenticationType, ClaimsIdentity.DefaultNameClaimType, ClaimsIdentity.DefaultRoleClaimType);
-
-
-                // ASP.Net Identity requires the NameIdentitifer field to be set or it won't  
+                // NOTE: ASP.Net Identity requires the NameIdentitifer field to be set or it won't  
                 // accept the external login (AuthenticationManagerExtensions.GetExternalLoginInfo)
                 
                 if (!string.IsNullOrEmpty(context.UserId))
@@ -161,6 +184,12 @@ namespace AngularJSAuthentication.EkeyAuth
                 {
                     context.Identity.AddClaim(new Claim(ClaimTypes.Email, context.Email, XmlSchemaString, Options.AuthenticationType));
                 }
+
+                if (!string.IsNullOrEmpty(context.Products))
+                {
+                    context.Identity.AddClaim(new Claim("urn:ekey:products", context.Products, XmlSchemaString, Options.AuthenticationType));
+                }
+
 
                 context.Properties = properties;
 
@@ -201,28 +230,8 @@ namespace AngularJSAuthentication.EkeyAuth
                 return Task.FromResult<object>(null);
             }
 
-
-
-
             var challenge = Helper.LookupChallenge(Options.AuthenticationType, Options.AuthenticationMode);
-
-            //if (challenge != null)
-            //{
-            //    var state = challenge.Properties;
-
-            //    state.RedirectUri = "https://test-loginconnector.gyldendal.dk/Navigator/Navigator?clientWebSite=Ordbog&clientWsSuccessUrl=http%3A%2F%2Flocalhost%3A26264%2Fsignin-ekey&clientWsFailureUrl=http%3A%2F%2Flocalhost%3A10640%2FLoginFail.aspx";
-
-            //    if (string.IsNullOrEmpty(state.RedirectUri))
-            //    {
-            //        state.RedirectUri = Request.Uri.ToString();
-            //    }
-
-            //    var stateString = Options.StateDataFormat.Protect(state);
-
-            //    Response.Redirect(WebUtilities.AddQueryString(Options.CallbackPath.Value, "state", stateString));
-            //}
-
-
+            
             if (challenge != null)
             {
                 var baseUri = Request.Scheme + Uri.SchemeDelimiter + Request.Host + Request.PathBase;
@@ -243,12 +252,9 @@ namespace AngularJSAuthentication.EkeyAuth
 
                 string state = Options.StateDataFormat.Protect(properties);
 
-                //"https://test-loginconnector.gyldendal.dk/Navigator/Navigator?clientWebSite=Ordbog&clientWsSuccessUrl=http%3A%2F%2Flocalhost%3A26264%2Fsignin-ekey&clientWsFailureUrl=http%3A%2F%2Flocalhost%3A10640%2FLoginFail.aspx";
 
-
-                // hack 
+                // (temporary hack) add state directly to the redirect uri...
                 redirectUri += "?state=" + Uri.EscapeDataString(state);
-
 
                 string authorizationEndpoint =
                 "https://test-loginconnector.gyldendal.dk/Navigator/Navigator" +
@@ -257,7 +263,7 @@ namespace AngularJSAuthentication.EkeyAuth
                 "&redirect_uri=" + Uri.EscapeDataString(redirectUri) +
                 "&clientWsSuccessUrl=" + Uri.EscapeDataString(redirectUri) +
                 "&clientWsFailureUrl=" + Uri.EscapeDataString(redirectUri) +
-                    // "&scope=" + Uri.EscapeDataString(scope) +
+                //"&scope=" + Uri.EscapeDataString("DO_CONNECTOR_SUPPORT_SCOPE?") +
                 "&state=" + Uri.EscapeDataString(state);
 
                 // GOOGLE REFERENCE:
@@ -293,10 +299,8 @@ namespace AngularJSAuthentication.EkeyAuth
             {
                 // If the path is indeed the callback path of the authentication middleware, the AuthenticateAsync method of the base class is called.
                 // It ensures that some lazy loaded properties of the base class are loaded and then calls AuthenticateCoreAsync.
-                // 
-                // This is where a real handler would inspect the incoming authentication ticket from the external authentication server.
-                // The dummy middleware just creates an identity with the values from the configuration.
-
+                 
+                // inspect the incoming authentication ticket from the external authentication server.
                 var ticket = await AuthenticateAsync(); // triggers load of some lazy loaded properties, and then calls AuthenticateCoreAsync
 
                 if (ticket == null)
@@ -307,9 +311,11 @@ namespace AngularJSAuthentication.EkeyAuth
                 }
 
 
-                var context = new EkeyReturnEndpointContext(Context, ticket);
-                context.SignInAsAuthenticationType = Options.SignInAsAuthenticationType;
-                context.RedirectUri = ticket.Properties.RedirectUri;
+                var context = new EkeyReturnEndpointContext(Context, ticket)
+                {
+                    SignInAsAuthenticationType = Options.SignInAsAuthenticationType,
+                    RedirectUri = ticket.Properties.RedirectUri
+                };
 
                 await Options.Provider.ReturnEndpoint(context);
 

@@ -1,5 +1,8 @@
-﻿using AngularJSAuthentication.API.Providers;
+﻿using System.Security.Claims;
+using System.Threading.Tasks;
+using AngularJSAuthentication.API.Providers;
 using AngularJSAuthentication.EkeyAuth;
+using AngularJSAuthentication.EkeyAuth.Provider;
 using AngularJSAuthentication.UniLoginAuth;
 using Microsoft.Owin;
 using Microsoft.Owin.Security;
@@ -50,7 +53,7 @@ namespace AngularJSAuthentication.API
             {
                 AllowInsecureHttp         = true,
                 TokenEndpointPath         = new PathString("/token"),
-                AccessTokenExpireTimeSpan = TimeSpan.FromMinutes(30),
+                AccessTokenExpireTimeSpan = TimeSpan.FromMinutes(5),
                 Provider                  = new SimpleAuthorizationServerProvider(),
                 RefreshTokenProvider      = new SimpleRefreshTokenProvider()
             };
@@ -95,7 +98,26 @@ namespace AngularJSAuthentication.API
                 ConnectorApiKey = "150EA85C-1005-400A-A0AF-C5B6062B7A9D",  // LOGINCONNECTORAPIKEY (LoginConnector API-key)
                 AppId           = "Ordbog",                                // Client Website Name
                 AppSecret       = "ordbog20-97dd07d",                      // Client UniConn SecretKey,
-                Provider = new EkeyAuthProvider()
+                Provider = new EkeyAuthenticationProvider
+                {
+                    OnAuthenticated = (context) =>
+                    {
+                        // All data from facebook in this object. 
+                        var rawUserObjectFromFacebookAsJson = context.User;
+
+                        // Only some of the basic details from facebook 
+                        // like id, username, email etc are added as claims.
+                        // But you can retrieve any other details from this
+                        // raw Json object from facebook and add it as claims here.
+                        // Subsequently adding a claim here will also send this claim
+                        // as part of the cookie set on the browser so you can retrieve
+                        // on every successive request. 
+                        context.Identity.AddClaim(new Claim("TEST", "NICO"));
+                        context.Identity.AddClaim(new Claim("ExternalAccessToken", context.AccessToken));
+
+                        return Task.FromResult(0);
+                    }
+                }
                 
             };
             app.UseEkeyAuthentication(EkeyAuthOptions);

@@ -70,33 +70,38 @@ namespace AngularJSAuthentication.API.Controllers
                 return BadRequest(Uri.EscapeDataString(error));
             }
 
+
+            // if not logged-in, just return a challenge
             if (!User.Identity.IsAuthenticated)
             {
                 return new ChallengeResult(provider, this);
             }
 
+            // Verify that the redirect uri is valid/allowed: 
             var redirectUriValidationResult = ValidateClientAndRedirectUri(this.Request, ref redirectUri);
-
             if (!string.IsNullOrWhiteSpace(redirectUriValidationResult))
             {
                 return BadRequest(redirectUriValidationResult);
             }
 
+            // verify the NameIdentifier claim matches the provider-key/issuer:
             ExternalLoginData externalLogin = ExternalLoginData.FromIdentity(User.Identity as ClaimsIdentity);
-
             if (externalLogin == null)
             {
                 return InternalServerError();
             }
 
+            // if currently logged in using another provider, sign-out the user: 
             if (externalLogin.LoginProvider != provider)
             {
                 Authentication.SignOut(DefaultAuthenticationTypes.ExternalCookie);
                 return new ChallengeResult(provider, this);
             }
 
-            IdentityUser user = await _repo.FindAsync(new UserLoginInfo(externalLogin.LoginProvider, externalLogin.ProviderKey));
+            var loginInfo = await Authentication.GetExternalLoginInfoAsync();
 
+            // verify that the user has been registered with a local account as well:
+            IdentityUser user = await _repo.FindAsync(new UserLoginInfo(externalLogin.LoginProvider, externalLogin.ProviderKey));
             bool hasRegistered = user != null;
 
             redirectUri = string.Format("{0}#external_access_token={1}&provider={2}&haslocalaccount={3}&external_user_name={4}",
@@ -180,6 +185,8 @@ namespace AngularJSAuthentication.API.Controllers
             }
 
             IdentityUser user = await _repo.FindAsync(new UserLoginInfo(provider, verifiedAccessToken.user_id));
+
+           // ExternalLoginInfo externalLoginInfo = await Authentication.GetExternalLoginInfoAsync();
 
             bool hasRegistered = user != null;
 
@@ -409,6 +416,10 @@ namespace AngularJSAuthentication.API.Controllers
 
             identity.AddClaim(new Claim(ClaimTypes.Name, userName));
             identity.AddClaim(new Claim("role", "user"));
+
+            
+
+
 
             var props = new AuthenticationProperties()
             {

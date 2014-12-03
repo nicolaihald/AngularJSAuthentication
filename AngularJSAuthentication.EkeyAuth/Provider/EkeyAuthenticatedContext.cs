@@ -1,4 +1,7 @@
 using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Globalization;
 using System.Linq;
 using System.Security.Claims;
@@ -28,16 +31,27 @@ namespace AngularJSAuthentication.EkeyAuth.Provider
             Subscriptions = subscriptions;
             AccessToken = accessToken;
 
-            JToken userLoggedInInfo;
-            user.TryGetValue("UserLoggedInInfo", out userLoggedInInfo);
-
-            JToken userInfo = user["UserLoggedInInfo"][0];
-
-            if (userInfo != null)
+            var productsToken = subscriptions.SelectToken("Products");
+            if (productsToken != null)
             {
-                UserId   = userInfo.Value<string>("UserIdentifier");
-                UserName = userInfo.Value<string>("UserIdentifier");
-                Email    = userInfo.Value<string>("UserIdentifier");
+                var products = (from token in productsToken.Children()
+                                select (string) token["Isbn"])
+                                .ToList();
+
+                Products = String.Join(",", products);
+
+            }
+            
+            var userToken = user.SelectToken("UserLoggedInInfo");
+            if (userToken != null)
+            {
+                var userInfo = userToken.FirstOrDefault();
+                if (userInfo != null)
+                {
+                    UserId   = userInfo.Value<string>("UserIdentifier");
+                    UserName = userInfo.Value<string>("UserIdentifier");
+                    Email    = userInfo.Value<string>("UserIdentifier");
+                }
             }
         }
 
@@ -57,6 +71,8 @@ namespace AngularJSAuthentication.EkeyAuth.Provider
         /// see https://developers.google.com/+/api/latest/people
         /// </remarks>
         public JObject Subscriptions { get; private set; }
+
+        public string Products { get; private set; }
 
         /// <summary>
         /// Gets the Ekey access token
