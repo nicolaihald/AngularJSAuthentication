@@ -1,37 +1,184 @@
-﻿using System.Net.Http;
+﻿using System;
+using System.Collections.Generic;
+using System.Net.Http;
 using System.Security.Claims;
+using System.Text;
 using System.Threading.Tasks;
+using AngularJSAuthentication.EkeyAuth.Provider;
+using Microsoft.Owin;
 using Microsoft.Owin.Infrastructure;
 using Microsoft.Owin.Logging;
 using Microsoft.Owin.Security;
 using Microsoft.Owin.Security.Infrastructure;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 
 namespace AngularJSAuthentication.EkeyAuth
 {
     public class EkeyAuthenticationHandler : AuthenticationHandler<EkeyAuthenticationOptions>
     {
+        private const string XmlSchemaString = "http://www.w3.org/2001/XMLSchema#string";
+        private const string TokenEndpoint = "https://test-loginconnector.gyldendal.dk/api/AlreadyLoggedIn";
+        private const string UserInfoEndpoint = "https://test-loginconnector.gyldendal.dk/api/LoggedInfo";
+
         private readonly HttpClient _httpClient;
         private readonly ILogger _logger;
-        
+
         public EkeyAuthenticationHandler(HttpClient httpClient, ILogger logger)
         {
             this._httpClient = httpClient;
             this._logger = logger;
         }
 
-        protected override Task<AuthenticationTicket> AuthenticateCoreAsync()
+        // FAKE/DUMMY IMPLEMENTATION 
+        //protected override Task<AuthenticationTicket> AuthenticateCoreAsync()
+        //{
+        //    // ASP.Net Identity requires the NameIdentitifer field to be set or it won't  
+        //    // accept the external login (AuthenticationManagerExtensions.GetExternalLoginInfo)
+        //    var identity = new ClaimsIdentity(Options.SignInAsAuthenticationType);
+        //    identity.AddClaim(new Claim(ClaimTypes.NameIdentifier, Options.AppId, null, Options.AuthenticationType));
+        //    identity.AddClaim(new Claim(ClaimTypes.Name, Options.AppSecret));
+
+        //    var properties = Options.StateDataFormat.Unprotect(Request.Query["state"]);
+
+        //    return Task.FromResult(new AuthenticationTicket(identity, properties));
+        //}
+
+        protected override async Task<AuthenticationTicket> AuthenticateCoreAsync()
         {
-            // ASP.Net Identity requires the NameIdentitifer field to be set or it won't  
-            // accept the external login (AuthenticationManagerExtensions.GetExternalLoginInfo)
+            AuthenticationProperties properties = null;
 
-            var identity = new ClaimsIdentity(Options.SignInAsAuthenticationType);
-            identity.AddClaim(new Claim(ClaimTypes.NameIdentifier, Options.AppId, null, Options.AuthenticationType));
-            identity.AddClaim(new Claim(ClaimTypes.Name, Options.AppSecret));
+            try
+            {
+                string code = null;
+                string state = null;
 
-            var properties = Options.StateDataFormat.Unprotect(Request.Query["state"]);
+                IReadableStringCollection query = Request.Query;
+                IList<string> values = query.GetValues("code");
+                if (values != null && values.Count == 1)
+                {
+                    code = values[0];
+                }
 
-            return Task.FromResult(new AuthenticationTicket(identity, properties));
+                values = query.GetValues("state");
+                if (values != null && values.Count == 1)
+                {
+                    state = values[0];
+                }
+
+                properties = Options.StateDataFormat.Unprotect(state);
+                if (properties == null)
+                {
+                    return null;
+                }
+
+                // TODO: CORRECT? 
+                //// OAuth2 10.12 CSRF
+                //if (!ValidateCorrelationId(properties, _logger))
+                //{
+                //    return  Task.FromResult(new AuthenticationTicket(null, properties));
+                //}
+
+
+                string requestPrefix = Request.Scheme + "://" + Request.Host;
+                string redirectUri = requestPrefix + Request.PathBase + Options.CallbackPath;
+
+                // Build up the body for the token request
+                //var body = new List<KeyValuePair<string, string>>();
+                //body.Add(new KeyValuePair<string, string>("grant_type", "authorization_code"));
+                //body.Add(new KeyValuePair<string, string>("code", code));
+                //body.Add(new KeyValuePair<string, string>("redirect_uri", redirectUri));
+                //body.Add(new KeyValuePair<string, string>("client_id", Options.AppId));
+                //body.Add(new KeyValuePair<string, string>("client_secret", Options.AppSecret));
+
+                //// Request the actual token:
+                //HttpResponseMessage tokenResponse = await _httpClient.GetAsync(TokenEndpoint, new FormUrlEncodedContent(body));
+                //tokenResponse.EnsureSuccessStatusCode();
+                //string text = await tokenResponse.Content.ReadAsStringAsync();
+
+                // Deserializes the token response:
+                //dynamic response = JsonConvert.DeserializeObject<dynamic>(text);
+                //string accessToken = (string)response.access_token;
+
+                var formData = await Request.ReadFormAsync();
+                var accessToken = formData["authenticationToken"];
+
+
+                //
+                //HttpRequestMessage alreadyLoggedInRequest = new HttpRequestMessage(HttpMethod.Get, TokenEndpoint + "?ClientName=" + Uri.EscapeDataString(Options.AppId));
+                //alreadyLoggedInRequest.Headers.Add("User-Agent", "OWIN Ekey OAuth Provider");
+                //alreadyLoggedInRequest.Headers.Add("LOGINCONNECTORAPIKEY", Options.ConnectorApiKey);
+                ////alreadyLoggedInRequest.Headers.Add("Authorization", "BEARER " + accessToken);
+
+                //HttpResponseMessage alreadyLoggedInResponse = await _httpClient.SendAsync(alreadyLoggedInRequest, Request.CallCancelled);
+                //alreadyLoggedInResponse.EnsureSuccessStatusCode();
+                //var text = await alreadyLoggedInResponse.Content.ReadAsStringAsync();
+                //JObject foo = JObject.Parse(text);
+
+
+                var requestData = (dynamic)new JObject();
+                requestData.subscriptionAuthentToken = accessToken;
+                requestData.clientWebShopName        = Options.AppId;
+                requestData.SharedSecret             = Options.AppSecret;
+                requestData.isbn                     = null;
+                requestData.ProductIds               = null;
+
+                var json = requestData.ToString();
+
+                var loggedInfoRequest = new HttpRequestMessage(HttpMethod.Post, UserInfoEndpoint);
+                loggedInfoRequest.Content = new StringContent(json, Encoding.UTF8, "application/json");
+                loggedInfoRequest.Headers.Add("User-Agent", "OWIN Ekey OAuth Provider");
+                loggedInfoRequest.Headers.Add("LOGINCONNECTORAPIKEY", Options.ConnectorApiKey);
+
+                HttpResponseMessage loggedInfoResponse = await _httpClient.SendAsync(loggedInfoRequest, Request.CallCancelled);
+                loggedInfoResponse.EnsureSuccessStatusCode();
+                var text = await loggedInfoResponse.Content.ReadAsStringAsync();
+                JObject user = JObject.Parse(text);
+
+
+                // 
+                JObject subscriptions = JObject.Parse("{}");
+
+
+                var context = new EkeyAuthenticatedContext(Context, user, subscriptions, accessToken);
+                context.Identity = new ClaimsIdentity(Options.AuthenticationType, ClaimsIdentity.DefaultNameClaimType, ClaimsIdentity.DefaultRoleClaimType);
+
+
+                // ASP.Net Identity requires the NameIdentitifer field to be set or it won't  
+                // accept the external login (AuthenticationManagerExtensions.GetExternalLoginInfo)
+                
+                if (!string.IsNullOrEmpty(context.UserId))
+                {
+                    context.Identity.AddClaim(new Claim(ClaimTypes.NameIdentifier, context.UserId, XmlSchemaString, Options.AuthenticationType));
+                }
+
+                if (!string.IsNullOrEmpty(context.UserName))
+                {
+                    context.Identity.AddClaim(new Claim(ClaimsIdentity.DefaultNameClaimType, context.UserName, XmlSchemaString, Options.AuthenticationType));
+                }
+
+                if (!string.IsNullOrEmpty(context.Email))
+                {
+                    context.Identity.AddClaim(new Claim(ClaimTypes.Email, context.Email, XmlSchemaString, Options.AuthenticationType));
+                }
+
+                context.Properties = properties;
+
+
+                await Options.Provider.Authenticated(context);
+
+                return new AuthenticationTicket(context.Identity, context.Properties);
+            }
+            catch (Exception ex)
+            {
+                _logger.WriteError(ex.Message);
+            }
+
+            return new AuthenticationTicket(null, properties);
         }
+
+
+
 
         /* REMARKS:
          * ============================
@@ -48,48 +195,81 @@ namespace AngularJSAuthentication.EkeyAuth
 
         protected override Task ApplyResponseChallengeAsync()
         {
-            if (Response.StatusCode == 401)
+            // Only react to 401 if there is an authentication challenge for the authentication type of this handler.
+            if (Response.StatusCode != 401)
             {
-                var challenge = Helper.LookupChallenge(Options.AuthenticationType, Options.AuthenticationMode);
+                return Task.FromResult<object>(null);
+            }
 
-                // Only react to 401 if there is an authentication challenge for the authentication type of this handler.
-                if (challenge != null)
+
+
+
+            var challenge = Helper.LookupChallenge(Options.AuthenticationType, Options.AuthenticationMode);
+
+            //if (challenge != null)
+            //{
+            //    var state = challenge.Properties;
+
+            //    state.RedirectUri = "https://test-loginconnector.gyldendal.dk/Navigator/Navigator?clientWebSite=Ordbog&clientWsSuccessUrl=http%3A%2F%2Flocalhost%3A26264%2Fsignin-ekey&clientWsFailureUrl=http%3A%2F%2Flocalhost%3A10640%2FLoginFail.aspx";
+
+            //    if (string.IsNullOrEmpty(state.RedirectUri))
+            //    {
+            //        state.RedirectUri = Request.Uri.ToString();
+            //    }
+
+            //    var stateString = Options.StateDataFormat.Protect(state);
+
+            //    Response.Redirect(WebUtilities.AddQueryString(Options.CallbackPath.Value, "state", stateString));
+            //}
+
+
+            if (challenge != null)
+            {
+                var baseUri = Request.Scheme + Uri.SchemeDelimiter + Request.Host + Request.PathBase;
+                var currentUri = baseUri + Request.Path + Request.QueryString;
+                var redirectUri = baseUri + Options.CallbackPath;
+
+                AuthenticationProperties properties = challenge.Properties;
+                if (string.IsNullOrEmpty(properties.RedirectUri))
                 {
-                    var state = challenge.Properties;
-
-                    state.RedirectUri = "https://test-loginconnector.gyldendal.dk/Navigator/Navigator?clientWebSite=Ordbog&clientWsSuccessUrl=http%3A%2F%2Flocalhost%3A26264%2Fsignin-ekey&clientWsFailureUrl=http%3A%2F%2Flocalhost%3A10640%2FLoginFail.aspx";
-                    
-                    if (string.IsNullOrEmpty(state.RedirectUri))
-                    {
-                        state.RedirectUri = Request.Uri.ToString();
-                    }
-
-                    var stateString = Options.StateDataFormat.Protect(state);
-
-                    Response.Redirect(WebUtilities.AddQueryString(Options.CallbackPath.Value, "state", stateString));
+                    properties.RedirectUri = currentUri;
                 }
 
+                // OAuth2 10.12 CSRF
+                GenerateCorrelationId(properties);
 
-                //if (challenge != null)
-                //{
-                //    string stringToEscape = base.get_Request().get_Scheme() + Uri.SchemeDelimiter + base.get_Request().get_Host();
-                //    AuthenticationProperties properties = challenge.get_Properties();
-                //    if (string.IsNullOrEmpty(properties.get_RedirectUri()))
-                //    {
-                //        properties.set_RedirectUri(string.Concat(new object[] { stringToEscape, base.get_Request().get_PathBase(), base.get_Request().get_Path(), base.get_Request().get_QueryString() }));
-                //    }
-                //    base.GenerateCorrelationId(properties);
-                //    string str2 = this.BuildReturnTo(base.get_Options().StateDataFormat.Protect(properties));
-                //    string redirectUri = "https://www.google.com/accounts/o8/ud?openid.ns=" + Uri.EscapeDataString("http://specs.openid.net/auth/2.0") + "&openid.ns.ax=" + Uri.EscapeDataString("http://openid.net/srv/ax/1.0") + "&openid.mode=" + Uri.EscapeDataString("checkid_setup") + "&openid.claimed_id=" + Uri.EscapeDataString("http://specs.openid.net/auth/2.0/identifier_select") + "&openid.identity=" + Uri.EscapeDataString("http://specs.openid.net/auth/2.0/identifier_select") + "&openid.return_to=" + Uri.EscapeDataString(str2) + "&openid.realm=" + Uri.EscapeDataString(stringToEscape) + "&openid.ax.mode=" + Uri.EscapeDataString("fetch_request") + "&openid.ax.type.email=" + Uri.EscapeDataString("http://axschema.org/contact/email") + "&openid.ax.type.name=" + Uri.EscapeDataString("http://axschema.org/namePerson") + "&openid.ax.type.first=" + Uri.EscapeDataString("http://axschema.org/namePerson/first") + "&openid.ax.type.last=" + Uri.EscapeDataString("http://axschema.org/namePerson/last") + "&openid.ax.required=" + Uri.EscapeDataString("email,name,first,last");
-                //    GoogleApplyRedirectContext context = new GoogleApplyRedirectContext(base.get_Context(), base.get_Options(), properties, redirectUri);
-                //    base.get_Options().Provider.ApplyRedirect(context);
-                //}
+                // comma separated
+                //string scope = string.Join(" ", Options.Scope);
+
+                string state = Options.StateDataFormat.Protect(properties);
+
+                //"https://test-loginconnector.gyldendal.dk/Navigator/Navigator?clientWebSite=Ordbog&clientWsSuccessUrl=http%3A%2F%2Flocalhost%3A26264%2Fsignin-ekey&clientWsFailureUrl=http%3A%2F%2Flocalhost%3A10640%2FLoginFail.aspx";
 
 
+                // hack 
+                redirectUri += "?state=" + Uri.EscapeDataString(state);
 
 
+                string authorizationEndpoint =
+                "https://test-loginconnector.gyldendal.dk/Navigator/Navigator" +
+                "?response_type=code" +
+                "&clientWebSite=" + Uri.EscapeDataString(Options.AppId) +
+                "&redirect_uri=" + Uri.EscapeDataString(redirectUri) +
+                "&clientWsSuccessUrl=" + Uri.EscapeDataString(redirectUri) +
+                "&clientWsFailureUrl=" + Uri.EscapeDataString(redirectUri) +
+                    // "&scope=" + Uri.EscapeDataString(scope) +
+                "&state=" + Uri.EscapeDataString(state);
 
+                // GOOGLE REFERENCE:
+                //string authorizationEndpoint = 
+                //    "https://accounts.google.com/o/oauth2/auth" +
+                //    "?response_type=code" +
+                //    "&client_id=" + Uri.EscapeDataString(Options.ClientId) +
+                //    "&redirect_uri=" + Uri.EscapeDataString(redirectUri) +
+                //    "&scope=" + Uri.EscapeDataString(scope) +
+                //    "&state=" + Uri.EscapeDataString(state);
 
+                Response.Redirect(authorizationEndpoint);
             }
 
             return Task.FromResult<object>(null);
@@ -119,16 +299,46 @@ namespace AngularJSAuthentication.EkeyAuth
 
                 var ticket = await AuthenticateAsync(); // triggers load of some lazy loaded properties, and then calls AuthenticateCoreAsync
 
-                if (ticket != null)
+                if (ticket == null)
                 {
-                    Context.Authentication.SignIn(ticket.Properties, ticket.Identity);
-
-                    Response.Redirect(ticket.Properties.RedirectUri);
-
-                    // Prevent further processing by the owin pipeline.
+                    _logger.WriteWarning("Invalid return state, unable to redirect.");
+                    Response.StatusCode = 500;
                     return true;
                 }
+
+
+                var context = new EkeyReturnEndpointContext(Context, ticket);
+                context.SignInAsAuthenticationType = Options.SignInAsAuthenticationType;
+                context.RedirectUri = ticket.Properties.RedirectUri;
+
+                await Options.Provider.ReturnEndpoint(context);
+
+                if (context.SignInAsAuthenticationType != null && context.Identity != null)
+                {
+                    ClaimsIdentity grantIdentity = context.Identity;
+                    if (!string.Equals(grantIdentity.AuthenticationType, context.SignInAsAuthenticationType, StringComparison.Ordinal))
+                    {
+                        grantIdentity = new ClaimsIdentity(grantIdentity.Claims, context.SignInAsAuthenticationType, grantIdentity.NameClaimType, grantIdentity.RoleClaimType);
+                    }
+                    Context.Authentication.SignIn(context.Properties, grantIdentity);
+                }
+
+                if (!context.IsRequestCompleted && context.RedirectUri != null)
+                {
+                    string redirectUri = context.RedirectUri;
+                    if (context.Identity == null)
+                    {
+                        // add a redirect hint that sign-in failed in some way
+                        redirectUri = WebUtilities.AddQueryString(redirectUri, "error", "access_denied");
+                    }
+                    Response.Redirect(redirectUri);
+                    context.RequestCompleted();
+                }
+
+                return context.IsRequestCompleted;
+                
             }
+
             // Let the rest of the pipeline run.
             return false;
         }

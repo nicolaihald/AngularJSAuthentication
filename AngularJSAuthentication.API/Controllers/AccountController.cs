@@ -318,13 +318,7 @@ namespace AngularJSAuthentication.API.Controllers
                 return null;
             }
 
-            //var httpClientHandler = new HttpClientHandler
-            //{
-            //    Proxy = new WebProxy("http://localhost:8888", false),
-            //    UseProxy = true
-            //};
-            //var client = new HttpClient(httpClientHandler);      
-      
+
             var client = new HttpClient();            
             var uri = new Uri(verifyTokenEndPoint);
             var response = await client.GetAsync(uri);

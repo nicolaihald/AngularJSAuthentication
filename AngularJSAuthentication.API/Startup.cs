@@ -94,7 +94,9 @@ namespace AngularJSAuthentication.API
             {
                 ConnectorApiKey = "150EA85C-1005-400A-A0AF-C5B6062B7A9D",  // LOGINCONNECTORAPIKEY (LoginConnector API-key)
                 AppId           = "Ordbog",                                // Client Website Name
-                AppSecret       = "ordbog20-97dd07d",                      // Client UniConn SecretKey                
+                AppSecret       = "ordbog20-97dd07d",                      // Client UniConn SecretKey,
+                Provider = new EkeyAuthProvider()
+                
             };
             app.UseEkeyAuthentication(EkeyAuthOptions);
 

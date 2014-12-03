@@ -1,4 +1,5 @@
 ﻿using System;
+using AngularJSAuthentication.EkeyAuth.Provider;
 using Microsoft.Owin;
 using Microsoft.Owin.Security;
 using Microsoft.Owin.Security.DataHandler;
@@ -10,20 +11,17 @@ namespace AngularJSAuthentication.EkeyAuth
 
         public EkeyAuthenticationOptions() : base(Constants.DefaultAuthenticationType)
         {
-            
-        }
-
-        public EkeyAuthenticationOptions(string appId, string appSecret, string connectorApiKey) : base(Constants.DefaultAuthenticationType) 
-        {
             Description.Caption = Constants.DefaultAuthenticationType;
             CallbackPath        = new PathString(Constants.DefaultCallbackPath);
             AuthenticationMode  = AuthenticationMode.Passive;
+            BackchannelTimeout  = TimeSpan.FromSeconds(60.0);
+        }
 
+        public EkeyAuthenticationOptions(string appId, string appSecret, string connectorApiKey) : this()
+        {
             AppSecret           = appId;
             AppId               = appSecret;
             ConnectorApiKey     = connectorApiKey;
-
-            BackchannelTimeout = TimeSpan.FromSeconds(60.0);
         }
 
         /// <summary>
@@ -49,8 +47,9 @@ namespace AngularJSAuthentication.EkeyAuth
 
         public ISecureDataFormat<AuthenticationProperties> StateDataFormat { get; set; }
 
-
-
-
+        /// <summary>
+        /// Gets or sets the <see cref="IEkeyAuthenticationProvider" /> used in the authentication events.
+        /// </summary>
+        public IEkeyAuthenticationProvider Provider { get; set; }
     }
 }

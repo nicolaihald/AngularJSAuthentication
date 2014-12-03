@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Globalization;
 using System.Net.Http;
+using AngularJSAuthentication.EkeyAuth.Provider;
 using Microsoft.Owin;
 using Microsoft.Owin.Logging;
 using Microsoft.Owin.Security;
@@ -26,7 +27,7 @@ namespace AngularJSAuthentication.EkeyAuth
 
         public EkeyAuthenticationMiddleware(OwinMiddleware next, IAppBuilder app, EkeyAuthenticationOptions options) : base(next, options)
         {
-            // verify options
+            #region --- VERIFY OPTIONS: ---
             if (String.IsNullOrWhiteSpace(options.AppId))
                 throw new ArgumentException(String.Format(CultureInfo.CurrentCulture, Resources.Exception_OptionMustBeProvided, "AppId"));
 
@@ -35,10 +36,14 @@ namespace AngularJSAuthentication.EkeyAuth
 
             if (String.IsNullOrWhiteSpace(options.ConnectorApiKey))
                 throw new ArgumentException(String.Format(CultureInfo.CurrentCulture, Resources.Exception_OptionMustBeProvided, "ConnectorApiKey"));
+            
+            #endregion
 
-            // 
             _logger = app.CreateLogger<EkeyAuthenticationMiddleware>();
 
+            // fallback to default provider
+            if (Options.Provider == null)
+                Options.Provider = new EkeyAuthenticationProvider();
 
             if (string.IsNullOrEmpty(options.SignInAsAuthenticationType))
             {
@@ -53,8 +58,8 @@ namespace AngularJSAuthentication.EkeyAuth
 
             _httpClient = new HttpClient(ResolveHttpMessageHandler(options))
             {
-                //Timeout = options.BackchannelTimeout,
-                //MaxResponseContentBufferSize = 1024 * 1024 * 10
+                Timeout = options.BackchannelTimeout,
+                MaxResponseContentBufferSize = 1024 * 1024 * 10
             };
         }
 
@@ -79,9 +84,18 @@ namespace AngularJSAuthentication.EkeyAuth
         }
 
 
-        // Called for each request, to create a handler for each request.
+        /// <summary>
+        ///     Provides the <see cref="T:Microsoft.Owin.Security.Infrastructure.AuthenticationHandler" /> object for processing
+        ///     authentication-related requests.
+        /// </summary>
+        /// <returns>
+        ///     An <see cref="T:Microsoft.Owin.Security.Infrastructure.AuthenticationHandler" /> configured with the
+        ///     <see cref="EkeyAuthenticationOptions" /> supplied to the constructor.
+        /// </returns>
+        
         protected override AuthenticationHandler<EkeyAuthenticationOptions> CreateHandler()
         {
+            // Called for each request, to create a handler for each request.
             return new EkeyAuthenticationHandler(_httpClient, _logger);
         }
     }
