@@ -137,12 +137,15 @@ namespace AngularJSAuthentication.API.Controllers
             IdentityUser user = await _repo.FindAsync(new UserLoginInfo(externalLogin.LoginProvider, externalLogin.ProviderKey));
             bool hasRegistered = user != null;
 
-            redirectUri = string.Format("{0}#external_access_token={1}&provider={2}&haslocalaccount={3}&external_user_name={4}",
+            var localAccessToken = GenerateLocalAccessTokenResponse2(externalLogin);
+
+            redirectUri = string.Format("{0}#external_access_token={1}&provider={2}&haslocalaccount={3}&external_user_name={4}&access_token={5}",
                                             redirectUri,
                                             externalLogin.ExternalAccessToken,
                                             externalLogin.LoginProvider,
                                             hasRegistered.ToString(),
-                                            externalLogin.UserName);
+                                            externalLogin.UserName,
+                                            localAccessToken);
 
             return Redirect(redirectUri);
 
@@ -480,6 +483,49 @@ namespace AngularJSAuthentication.API.Controllers
 
             return tokenResponse;
         }
+
+        private string GenerateLocalAccessTokenResponse2(ExternalLoginData externalLoginData)
+        {
+
+            var tokenExpiration = TimeSpan.FromDays(1);
+
+            ClaimsIdentity identity = new ClaimsIdentity(OAuthDefaults.AuthenticationType);
+
+            identity.AddClaim(new Claim(ClaimTypes.Name, externalLoginData.UserName));
+            identity.AddClaim(new Claim("role", "user"));
+
+            var claimsToInclude = externalLoginData.ExternalClaims.Where(x => x.Type.StartsWith("urn")).ToList();
+            identity.AddClaims(claimsToInclude);
+
+            //if (externalLoginInfo != null)
+            //{
+            //    var externalIdentity = (ClaimsIdentity)externalLoginInfo.ExternalIdentity;
+            //    var productsClaim = externalIdentity.FindFirst("urn:ekey:products");
+            //    if (productsClaim != null)
+            //        identity.AddClaim(productsClaim);
+            //}
+
+            var props = new AuthenticationProperties()
+            {
+                IssuedUtc = DateTime.UtcNow,
+                ExpiresUtc = DateTime.UtcNow.Add(tokenExpiration),
+            };
+
+            var ticket = new AuthenticationTicket(identity, props);
+            var accessToken = Startup.OAuthBearerOptions.AccessTokenFormat.Protect(ticket);
+
+            //    JObject tokenResponse = new JObject(
+            //                                new JProperty("userName", userName),
+            //                                new JProperty("access_token", accessToken),
+            //                                new JProperty("token_type", "bearer"),
+            //                                new JProperty("expires_in", tokenExpiration.TotalSeconds.ToString()),
+            //                                new JProperty(".issued", ticket.Properties.IssuedUtc.ToString()),
+            //                                new JProperty(".expires", ticket.Properties.ExpiresUtc.ToString())
+            //);
+
+            return accessToken;
+        }
+
 
         private class ExternalLoginData
         {

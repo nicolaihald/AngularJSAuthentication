@@ -88,6 +88,23 @@ app.factory('authService', ['$http', '$q', 'localStorageService', 'ngAuthSetting
 
     };
 
+    var _setAuthData = function (authData) {
+
+        if (authData) {
+            _authentication.isAuth = true;
+            _authentication.userName = authData.userName;
+            _authentication.useRefreshTokens = authData.useRefreshTokens;
+        }
+
+        localStorageService.set('authorizationData', {
+            token: authData.access_token,
+            userName: authData.userName,
+            refreshToken: "",
+            useRefreshTokens: false
+        });
+
+    };
+
     var _refreshToken = function () {
         var deferred = $q.defer();
 
@@ -121,7 +138,8 @@ app.factory('authService', ['$http', '$q', 'localStorageService', 'ngAuthSetting
 
         var deferred = $q.defer();
 
-        $http.get(serviceBase + 'api/account/ObtainLocalAccessToken', { params: { provider: externalData.provider, externalAccessToken: externalData.externalAccessToken } }).success(function (response) {
+        $http.get(serviceBase + 'api/account/ObtainLocalAccessToken', { params: { provider: externalData.provider, externalAccessToken: externalData.externalAccessToken } })
+            .success(function (response) {
 
             localStorageService.set('authorizationData', { token: response.access_token, userName: response.userName, refreshToken: "", useRefreshTokens: false });
 
@@ -169,6 +187,9 @@ app.factory('authService', ['$http', '$q', 'localStorageService', 'ngAuthSetting
     authServiceFactory.fillAuthData = _fillAuthData;
     authServiceFactory.authentication = _authentication;
     authServiceFactory.refreshToken = _refreshToken;
+
+    // NEW
+    authServiceFactory.setAuthData = _setAuthData;
 
     authServiceFactory.obtainAccessToken = _obtainAccessToken;
     authServiceFactory.externalAuthData = _externalAuthData;

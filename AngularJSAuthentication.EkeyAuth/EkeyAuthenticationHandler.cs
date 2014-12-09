@@ -166,7 +166,7 @@ namespace AngularJSAuthentication.EkeyAuth
 
                 if (!string.IsNullOrEmpty(ekeyContext.Products))
                 {
-                    ekeyContext.Identity.AddClaim(new Claim("urn:ekey:products", ekeyContext.Products, XmlSchemaString, Options.AuthenticationType));
+                    ekeyContext.Identity.AddClaim(new Claim("urn:gyldendal:products", ekeyContext.Products, XmlSchemaString, Options.AuthenticationType));
                 }
 
 

@@ -11,25 +11,19 @@ namespace AngularJSAuthentication.API.Controllers
     [RoutePrefix("api/products")]
     public class ProductsController : ApiController
     {
+        private const bool AddAllClaimsAsProducts = false;
+
         [Authorize]
         [Route("")]
         public IHttpActionResult Get()
         {
-            var claimsPrincipal = Request.GetRequestContext().Principal as ClaimsPrincipal;
-            var name = ClaimsPrincipal.Current.Identity.Name;
-            
-            var productsClaim = ClaimsPrincipal.Current.Claims.FirstOrDefault(c => c.Type == "urn:ekey:products");
-            var products = Product.CreateProducts();
+            var productsClaim = ClaimsPrincipal.Current.Claims.FirstOrDefault(c => c.Type == "urn:gyldendal:products");
+            var products = Product.CreateProducts(productsClaim);
 
-            if (claimsPrincipal != null)
+            if (AddAllClaimsAsProducts)
             {
-                claimsPrincipal.Claims.ToList().ForEach(x => products.Add(new Product { Isbn = string.Format("{0}:{1}", x.Type, x.Value) }));
-            }
-
-            if (productsClaim != null)
-            {
-                var isbnList = productsClaim.Value.Split(new[] {','}, StringSplitOptions.RemoveEmptyEntries).ToList();
-                isbnList.ForEach(x => products.Add(new Product {Isbn = x}));
+                //var claimsPrincipal = Request.GetRequestContext().Principal as ClaimsPrincipal;
+                products.AddFromClaimsPricipal(ClaimsPrincipal.Current);
             }
 
             return Ok(products);
@@ -42,18 +36,39 @@ namespace AngularJSAuthentication.API.Controllers
     public class Product
     {
         public string Isbn { get; set; }
-        public Boolean IsShipped { get; set; }
+        public Boolean IsAuthorized { get; set; }
 
-        public static List<Product> CreateProducts()
+        public Product()
         {
-            var productList = new List<Product> 
+            IsAuthorized = true;
+        }
+        public static IList<Product> CreateProducts(Claim claim)
+        {
+            var list = new List<Product>();
+            if (claim != null)
             {
-                new Product {Isbn = "FAKE", IsShipped = true },                
-            };
+                list.Add(new Product { Isbn = string.Format("{0}:{1}", claim.Type, claim.Value) });
 
-            return productList;
+                var isbns = claim.Value.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries).ToList();
+                isbns.ForEach(x => list.Add(new Product { Isbn = x }));
+            }
+
+            return list;
+
+        } 
+    }
+
+    public static class ProductListExtensions
+    {
+        public static void AddFromClaimsPricipal(this IList<Product> products, ClaimsPrincipal claimsPrincipal)
+        {
+            if (claimsPrincipal != null) 
+                claimsPrincipal.Claims.ToList().ForEach(x => products.Add(new Product { Isbn = string.Format("{0}:{1}", x.Type, x.Value) }));
         }
     }
 
     #endregion
 }
+
+
+
