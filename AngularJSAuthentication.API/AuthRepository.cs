@@ -102,6 +102,19 @@ namespace AngularJSAuthentication.API
             return user;
         }
 
+        public async Task<IdentityResult> UpdateAsync(IdentityUser loginInfo)
+        {
+            var result = await _userManager.UpdateAsync(new IdentityUser());
+            return result;
+        }
+
+        public async Task<IdentityResult> AddClaimAsync(UserModel userModel, Claim claim)
+        {
+            var result = await _userManager.AddClaimAsync(userModel.UserName, claim);
+            return result;
+        }
+
+
         public async Task<IdentityResult> CreateAsync(IdentityUser user)
         {
             var result = await _userManager.CreateAsync(user);

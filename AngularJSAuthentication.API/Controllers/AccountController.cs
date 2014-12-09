@@ -57,10 +57,42 @@ namespace AngularJSAuthentication.API.Controllers
         }
 
         // GET api/Account/ExternalLogin
-        [OverrideAuthentication]
-        [HostAuthentication(DefaultAuthenticationTypes.ExternalCookie)]
+
+        
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="provider"></param>
+        /// <param name="error"></param>
+        /// <remarks>
+        /// [OverrideAuthentication]: 
+        /// - Suppress global authentication filters (which suppresses the application bearer token host authentication filter). 
+        /// [HostAuthentication(DefaultAuthenticationTypes.ExternalCookie)]: 
+        /// - Enables ExternalCookieAuthenticationType host authentication, which represents the user’s external sign in state. 
+        /// With this setting, the User.Identity will be set as the external login identity, for example, Facebook identity.
+        /// 
+        /// [AllowAnonymous]:
+        /// Enables a user to reach this endpoint without an external sign in state. 
+        /// It will trigger an external sign in challenge when the user is anonymous. 
+        /// That’s the scenario when the unauthorized user clicks the Google button to trigger a redirection to Facebook.com.
+        ///
+        /// The actual flow: 
+        /// ----------------
+        /// After the browser redirects back from facebook.com and gets the external sign in cookie from the Facebook authentication middleware, 
+        /// this action will check if the external login data has already been associated with existing user.
+        /// 
+        /// If it has, it will sign in with both the application bearer token identity and the application cookie identity. 
+        /// It will trigger a redirection and add an access token as an URL fragment.
+        /// 
+        /// If not, it will sign in with the external bearer token identity, and it will also be sent to the client by implicit flow. 
+        /// The client code will check if the user is registered by the code, and display the register external user page as needed. 
+        /// After the user is registered, the client code will trigger the external login flow again to get the application bearer token.
+        /// </remarks>
+        /// <returns></returns>
+        [OverrideAuthentication] 
+        [HostAuthentication(DefaultAuthenticationTypes.ExternalCookie)] 
         [AllowAnonymous]
-        [Route("ExternalLogin", Name = "ExternalLogin")]
+        [Route("ExternalLogin", Name = "ExternalLogin")]        
         public async Task<IHttpActionResult> GetExternalLogin(string provider, string error = null)
         {
             string redirectUri = string.Empty;
@@ -71,7 +103,8 @@ namespace AngularJSAuthentication.API.Controllers
             }
 
 
-            // if not logged-in, just return a challenge
+            // If not already logged-in, just return a challenge for the specified provider. 
+            // Which then will picked up by and handled by the provider middleware: 
             if (!User.Identity.IsAuthenticated)
             {
                 return new ChallengeResult(provider, this);
@@ -84,7 +117,7 @@ namespace AngularJSAuthentication.API.Controllers
                 return BadRequest(redirectUriValidationResult);
             }
 
-            // verify the NameIdentifier claim matches the provider-key/issuer:
+            // verify that the "NameIdentifier"-claim matches the provider-key/issuer:
             ExternalLoginData externalLogin = ExternalLoginData.FromIdentity(User.Identity as ClaimsIdentity);
             if (externalLogin == null)
             {
@@ -186,7 +219,7 @@ namespace AngularJSAuthentication.API.Controllers
 
             IdentityUser user = await _repo.FindAsync(new UserLoginInfo(provider, verifiedAccessToken.user_id));
 
-           // ExternalLoginInfo externalLoginInfo = await Authentication.GetExternalLoginInfoAsync();
+            ExternalLoginInfo externalLoginInfo = await Authentication.GetExternalLoginInfoAsync();
 
             bool hasRegistered = user != null;
 
@@ -196,7 +229,7 @@ namespace AngularJSAuthentication.API.Controllers
             }
 
             //generate access token response
-            var accessTokenResponse = GenerateLocalAccessTokenResponse(user.UserName);
+            var accessTokenResponse = GenerateLocalAccessTokenResponse(user.UserName, externalLoginInfo);
 
             return Ok(accessTokenResponse);
 
@@ -325,11 +358,12 @@ namespace AngularJSAuthentication.API.Controllers
                 // TEMP HACK:
                 var requestData = (dynamic)new JObject();
                 requestData.subscriptionAuthentToken = accessToken;
-                requestData.clientWebShopName = Startup.EkeyAuthOptions.AppId;
-                requestData.SharedSecret = Startup.EkeyAuthOptions.AppSecret;
+                requestData.clientWebShopName        = Startup.EkeyAuthOptions.AppId;
+                requestData.SharedSecret             = Startup.EkeyAuthOptions.AppSecret;
 
                 var loggedInfoRequest = new HttpRequestMessage(HttpMethod.Post, verifyTokenEndPoint);
                 loggedInfoRequest.Content = new StringContent(requestData.ToString(), Encoding.UTF8, "application/json");
+
                 loggedInfoRequest.Headers.Add("User-Agent", "OWIN Ekey OAuth Provider");
                 loggedInfoRequest.Headers.Add("LOGINCONNECTORAPIKEY", Startup.EkeyAuthOptions.ConnectorApiKey);
 
@@ -349,7 +383,6 @@ namespace AngularJSAuthentication.API.Controllers
                     
                     return notValidatedToken;
                 }
-
             }
             else
             {
@@ -407,7 +440,7 @@ namespace AngularJSAuthentication.API.Controllers
             return parsedToken;
         }
 
-        private JObject GenerateLocalAccessTokenResponse(string userName)
+        private JObject GenerateLocalAccessTokenResponse(string userName, ExternalLoginInfo externalLoginInfo = null)
         {
 
             var tokenExpiration = TimeSpan.FromDays(1);
@@ -416,10 +449,16 @@ namespace AngularJSAuthentication.API.Controllers
 
             identity.AddClaim(new Claim(ClaimTypes.Name, userName));
             identity.AddClaim(new Claim("role", "user"));
+            identity.AddClaim(new Claim("TODO", "urn:ekey:products"));
 
-            
+            if (externalLoginInfo != null)
+            {
+                var externalIdentity = (ClaimsIdentity) externalLoginInfo.ExternalIdentity;
+                var productsClaim = externalIdentity.FindFirst("urn:ekey:products");
 
-
+                if(productsClaim != null)
+                    identity.AddClaim(productsClaim);
+            }
 
             var props = new AuthenticationProperties()
             {
@@ -428,7 +467,6 @@ namespace AngularJSAuthentication.API.Controllers
             };
 
             var ticket = new AuthenticationTicket(identity, props);
-
             var accessToken = Startup.OAuthBearerOptions.AccessTokenFormat.Protect(ticket);
 
             JObject tokenResponse = new JObject(
@@ -449,6 +487,8 @@ namespace AngularJSAuthentication.API.Controllers
             public string ProviderKey { get; set; }
             public string UserName { get; set; }
             public string ExternalAccessToken { get; set; }
+
+            public List<Claim> ExternalClaims { get; set; }
 
             public static ExternalLoginData FromIdentity(ClaimsIdentity identity)
             {
@@ -475,6 +515,7 @@ namespace AngularJSAuthentication.API.Controllers
                     ProviderKey = providerKeyClaim.Value,
                     UserName = identity.FindFirstValue(ClaimTypes.Name),
                     ExternalAccessToken = identity.FindFirstValue("ExternalAccessToken"),
+                    ExternalClaims = identity.Claims.ToList()
                 };
             }
         }

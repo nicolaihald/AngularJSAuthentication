@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using AngularJSAuthentication.EkeyAuth.Provider;
 using Microsoft.Owin;
 using Microsoft.Owin.Security;
@@ -15,6 +16,12 @@ namespace AngularJSAuthentication.EkeyAuth
             CallbackPath        = new PathString(Constants.DefaultCallbackPath);
             AuthenticationMode  = AuthenticationMode.Passive;
             BackchannelTimeout  = TimeSpan.FromSeconds(60.0);
+
+            Scope = new List<string>
+            {
+                "loggedininfo",
+                "subscriptions"
+            };
         }
 
         public EkeyAuthenticationOptions(string appId, string appSecret, string connectorApiKey) : this()
@@ -51,5 +58,7 @@ namespace AngularJSAuthentication.EkeyAuth
         /// Gets or sets the <see cref="IEkeyAuthenticationProvider" /> used in the authentication events.
         /// </summary>
         public IEkeyAuthenticationProvider Provider { get; set; }
+
+        public IList<string> Scope { get; set; }
     }
 }

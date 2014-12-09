@@ -19,7 +19,10 @@ namespace AngularJSAuthentication.EkeyAuth
     {
         private const string XmlSchemaString = "http://www.w3.org/2001/XMLSchema#string";
         private const string TokenEndpoint = "https://test-loginconnector.gyldendal.dk/api/AlreadyLoggedIn";
-        private const string UserInfoEndpoint = "https://test-loginconnector.gyldendal.dk/api/LoggedInfo";
+
+
+        private const string AuthorizationEndpoint     = "https://test-loginconnector.gyldendal.dk/Navigator/Navigator";
+        private const string UserInfoEndpoint          = "https://test-loginconnector.gyldendal.dk/api/LoggedInfo";
         private const string UserSubscriptionsEndpoint = "https://test-loginconnector.gyldendal.dk/api/subscriptions/GetAllSubsciptions";
 
         private readonly HttpClient _httpClient;
@@ -30,20 +33,7 @@ namespace AngularJSAuthentication.EkeyAuth
             this._httpClient = httpClient;
             this._logger = logger;
         }
-
-        // FAKE/DUMMY IMPLEMENTATION 
-        //protected override Task<AuthenticationTicket> AuthenticateCoreAsync()
-        //{
-        //    // ASP.Net Identity requires the NameIdentitifer field to be set or it won't  
-        //    // accept the external login (AuthenticationManagerExtensions.GetExternalLoginInfo)
-        //    var identity = new ClaimsIdentity(Options.SignInAsAuthenticationType);
-        //    identity.AddClaim(new Claim(ClaimTypes.NameIdentifier, Options.AppId, null, Options.AuthenticationType));
-        //    identity.AddClaim(new Claim(ClaimTypes.Name, Options.AppSecret));
-
-        //    var properties = Options.StateDataFormat.Unprotect(Request.Query["state"]);
-
-        //    return Task.FromResult(new AuthenticationTicket(identity, properties));
-        //}
+        
 
         protected override async Task<AuthenticationTicket> AuthenticateCoreAsync()
         {
@@ -108,18 +98,6 @@ namespace AngularJSAuthentication.EkeyAuth
                 var accessToken = formData["authenticationToken"];
 
 
-                //
-                //HttpRequestMessage alreadyLoggedInRequest = new HttpRequestMessage(HttpMethod.Get, TokenEndpoint + "?ClientName=" + Uri.EscapeDataString(Options.AppId));
-                //alreadyLoggedInRequest.Headers.Add("User-Agent", "OWIN Ekey OAuth Provider");
-                //alreadyLoggedInRequest.Headers.Add("LOGINCONNECTORAPIKEY", Options.ConnectorApiKey);
-                ////alreadyLoggedInRequest.Headers.Add("Authorization", "BEARER " + accessToken);
-
-                //HttpResponseMessage alreadyLoggedInResponse = await _httpClient.SendAsync(alreadyLoggedInRequest, Request.CallCancelled);
-                //alreadyLoggedInResponse.EnsureSuccessStatusCode();
-                //var text = await alreadyLoggedInResponse.Content.ReadAsStringAsync();
-                //JObject foo = JObject.Parse(text);
-
-
                 #region --- REQUEST USER INFO: ---
                 var userinfoRequestData = (dynamic)new JObject();
                 userinfoRequestData.subscriptionAuthentToken = accessToken;
@@ -161,7 +139,8 @@ namespace AngularJSAuthentication.EkeyAuth
                 
                 #endregion
 
-                var context = new EkeyAuthenticatedContext(Context, user, subscriptions, accessToken)
+
+                var ekeyContext = new EkeyAuthenticatedContext(Context, user, subscriptions, accessToken)
                 {
                     Identity = new ClaimsIdentity(Options.AuthenticationType, ClaimsIdentity.DefaultNameClaimType, ClaimsIdentity.DefaultRoleClaimType)
                 };
@@ -170,33 +149,33 @@ namespace AngularJSAuthentication.EkeyAuth
                 // NOTE: ASP.Net Identity requires the NameIdentitifer field to be set or it won't  
                 // accept the external login (AuthenticationManagerExtensions.GetExternalLoginInfo)
                 
-                if (!string.IsNullOrEmpty(context.UserId))
+                if (!string.IsNullOrEmpty(ekeyContext.UserId))
                 {
-                    context.Identity.AddClaim(new Claim(ClaimTypes.NameIdentifier, context.UserId, XmlSchemaString, Options.AuthenticationType));
+                    ekeyContext.Identity.AddClaim(new Claim(ClaimTypes.NameIdentifier, ekeyContext.UserId, XmlSchemaString, Options.AuthenticationType));
                 }
 
-                if (!string.IsNullOrEmpty(context.UserName))
+                if (!string.IsNullOrEmpty(ekeyContext.UserName))
                 {
-                    context.Identity.AddClaim(new Claim(ClaimsIdentity.DefaultNameClaimType, context.UserName, XmlSchemaString, Options.AuthenticationType));
+                    ekeyContext.Identity.AddClaim(new Claim(ClaimsIdentity.DefaultNameClaimType, ekeyContext.UserName, XmlSchemaString, Options.AuthenticationType));
                 }
 
-                if (!string.IsNullOrEmpty(context.Email))
+                if (!string.IsNullOrEmpty(ekeyContext.Email))
                 {
-                    context.Identity.AddClaim(new Claim(ClaimTypes.Email, context.Email, XmlSchemaString, Options.AuthenticationType));
+                    ekeyContext.Identity.AddClaim(new Claim(ClaimTypes.Email, ekeyContext.Email, XmlSchemaString, Options.AuthenticationType));
                 }
 
-                if (!string.IsNullOrEmpty(context.Products))
+                if (!string.IsNullOrEmpty(ekeyContext.Products))
                 {
-                    context.Identity.AddClaim(new Claim("urn:ekey:products", context.Products, XmlSchemaString, Options.AuthenticationType));
+                    ekeyContext.Identity.AddClaim(new Claim("urn:ekey:products", ekeyContext.Products, XmlSchemaString, Options.AuthenticationType));
                 }
 
 
-                context.Properties = properties;
+                ekeyContext.Properties = properties;
 
 
-                await Options.Provider.Authenticated(context);
+                await Options.Provider.Authenticated(ekeyContext);
 
-                return new AuthenticationTicket(context.Identity, context.Properties);
+                return new AuthenticationTicket(ekeyContext.Identity, ekeyContext.Properties);
             }
             catch (Exception ex)
             {
@@ -205,10 +184,7 @@ namespace AngularJSAuthentication.EkeyAuth
 
             return new AuthenticationTicket(null, properties);
         }
-
-
-
-
+        
         /* REMARKS:
          * ============================
          * The first method to be invoked on the handler is the ApplyResponseChallengeAsync method. It will be called for all requests 
@@ -248,23 +224,27 @@ namespace AngularJSAuthentication.EkeyAuth
                 GenerateCorrelationId(properties);
 
                 // comma separated
-                //string scope = string.Join(" ", Options.Scope);
+                string scope = string.Join(" ", Options.Scope);
 
                 string state = Options.StateDataFormat.Protect(properties);
 
 
-                // (temporary hack) add state directly to the redirect uri...
+                // (temporary hack) add state directly to the redirect uri. as the LoginConnector doesn't support passing state, and therefore doesn't 
+                // pass back the state automatically...
                 redirectUri += "?state=" + Uri.EscapeDataString(state);
 
-                string authorizationEndpoint =
-                "https://test-loginconnector.gyldendal.dk/Navigator/Navigator" +
-                "?response_type=code" +
-                "&clientWebSite=" + Uri.EscapeDataString(Options.AppId) +
-                "&redirect_uri=" + Uri.EscapeDataString(redirectUri) +
-                "&clientWsSuccessUrl=" + Uri.EscapeDataString(redirectUri) +
-                "&clientWsFailureUrl=" + Uri.EscapeDataString(redirectUri) +
-                //"&scope=" + Uri.EscapeDataString("DO_CONNECTOR_SUPPORT_SCOPE?") +
-                "&state=" + Uri.EscapeDataString(state);
+                string authorizationEndpoint =  AuthorizationEndpoint +
+                                                "?response_type=code" +
+                                                "&clientWebSite=" + Uri.EscapeDataString(Options.AppId) +
+                                                "&redirect_uri=" + Uri.EscapeDataString(redirectUri) +
+                                                "&clientWsSuccessUrl=" + Uri.EscapeDataString(redirectUri) +
+                                                "&clientWsFailureUrl=" + Uri.EscapeDataString(redirectUri) +
+                                                
+                                                "&scope_todo=" + Uri.EscapeDataString("CONNECTER_DOES_NOT_SUPPORT_SCOPES?") +
+                                                "&scope=" + Uri.EscapeDataString(scope) +
+
+                                                "&state_todo=" + Uri.EscapeDataString("CONNECTER_DOES_NOT_SUPPORT_STATE?") +                                               
+                                                "&state=" + Uri.EscapeDataString(state);
 
                 // GOOGLE REFERENCE:
                 //string authorizationEndpoint = 
@@ -311,37 +291,40 @@ namespace AngularJSAuthentication.EkeyAuth
                 }
 
 
-                var context = new EkeyReturnEndpointContext(Context, ticket)
+                var ekeyContext = new EkeyReturnEndpointContext(Context, ticket)
                 {
                     SignInAsAuthenticationType = Options.SignInAsAuthenticationType,
                     RedirectUri = ticket.Properties.RedirectUri
                 };
 
-                await Options.Provider.ReturnEndpoint(context);
+                // trigger provider callback hook
+                await Options.Provider.ReturnEndpoint(ekeyContext);
 
-                if (context.SignInAsAuthenticationType != null && context.Identity != null)
+                if (ekeyContext.SignInAsAuthenticationType != null && ekeyContext.Identity != null)
                 {
-                    ClaimsIdentity grantIdentity = context.Identity;
-                    if (!string.Equals(grantIdentity.AuthenticationType, context.SignInAsAuthenticationType, StringComparison.Ordinal))
+                    ClaimsIdentity grantIdentity = ekeyContext.Identity;
+                    if (!string.Equals(grantIdentity.AuthenticationType, ekeyContext.SignInAsAuthenticationType, StringComparison.Ordinal))
                     {
-                        grantIdentity = new ClaimsIdentity(grantIdentity.Claims, context.SignInAsAuthenticationType, grantIdentity.NameClaimType, grantIdentity.RoleClaimType);
+                        grantIdentity = new ClaimsIdentity(grantIdentity.Claims, ekeyContext.SignInAsAuthenticationType, grantIdentity.NameClaimType, grantIdentity.RoleClaimType);
                     }
-                    Context.Authentication.SignIn(context.Properties, grantIdentity);
+
+                    Context.Authentication.SignIn(ekeyContext.Properties, grantIdentity);
                 }
 
-                if (!context.IsRequestCompleted && context.RedirectUri != null)
+                if (!ekeyContext.IsRequestCompleted && ekeyContext.RedirectUri != null)
                 {
-                    string redirectUri = context.RedirectUri;
-                    if (context.Identity == null)
+                    string redirectUri = ekeyContext.RedirectUri;
+                    if (ekeyContext.Identity == null)
                     {
                         // add a redirect hint that sign-in failed in some way
                         redirectUri = WebUtilities.AddQueryString(redirectUri, "error", "access_denied");
                     }
+
                     Response.Redirect(redirectUri);
-                    context.RequestCompleted();
+                    ekeyContext.RequestCompleted();
                 }
 
-                return context.IsRequestCompleted;
+                return ekeyContext.IsRequestCompleted;
                 
             }
 

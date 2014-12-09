@@ -27,6 +27,7 @@
                 <ul class="nav navbar-nav navbar-right">
                     <li data-ng-hide="!authentication.isAuth"><a href="#">Welcome {{authentication.userName}}</a></li>
                     <li data-ng-hide="!authentication.isAuth"><a href="#/orders">My Orders</a></li>
+                    <li data-ng-hide="!authentication.isAuth"><a href="#/products">My Products</a></li>
                     <li data-ng-hide="!authentication.isAuth"><a href="#/refresh">Refresh Token</a></li>
                     <li data-ng-hide="!authentication.isAuth"><a href="" data-ng-click="logOut()">Logout</a></li>
                     <li data-ng-hide="authentication.isAuth"> <a href="#/login">Login</a></li>
@@ -55,10 +56,10 @@
         <div class="container">
             <div class="row">
                 <div class="col-md-6">
-                    <p class="text-muted">Created by Taiseer Joudeh. Twitter: <a target="_blank" href="http://twitter.com/tjoudeh">@tjoudeh</a></p>
+                    <p class="text-muted">Gyldendal Auth POC <a target="_blank" href="#">@vankenobi</a></p>
                 </div>
                 <div class="col-md-6">
-                    <p class="text-muted">Taiseer Joudeh Blog: <a target="_blank" href="http://bitoftech.net">bitoftech.net</a></p>
+                    <p class="text-muted">Gyldendal OWIN OAuth Authentication Middleeware POC </p>
                 </div>
             </div>
         </div>
@@ -78,13 +79,16 @@
     <script src="app/services/authInterceptorService.js?v=2"></script>
     <script src="app/services/authService.js?v=2"></script>
     <script src="app/services/ordersService.js?v=2"></script>
+    <script src="app/services/productsService.js?v=2"></script>
     <script src="app/services/tokensManagerService.js?v=2"></script>
+
     <!-- Load controllers -->
     <script src="app/controllers/indexController.js?v=2"></script>
     <script src="app/controllers/homeController.js?v=2"></script>
     <script src="app/controllers/loginController.js?v=2"></script>
     <script src="app/controllers/signupController.js?v=2"></script>
     <script src="app/controllers/ordersController.js?v=2"></script>
+    <script src="app/controllers/productsController.js?v=2"></script>
     <script src="app/controllers/refreshController.js?v=2"></script>
     <script src="app/controllers/tokensManagerController.js?v=2"></script>
     <script src="app/controllers/associateController.js?v=2"></script>

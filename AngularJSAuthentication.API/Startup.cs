@@ -8,6 +8,7 @@ using Microsoft.Owin;
 using Microsoft.Owin.Security;
 using Microsoft.Owin.Security.Facebook;
 using Microsoft.Owin.Security.Google;
+using Microsoft.Owin.Security.Infrastructure;
 using Microsoft.Owin.Security.OAuth;
 using Owin;
 using System;
@@ -46,6 +47,18 @@ namespace AngularJSAuthentication.API
             app.UseExternalSignInCookie(Microsoft.AspNet.Identity.DefaultAuthenticationTypes.ExternalCookie);
             OAuthBearerOptions = new OAuthBearerAuthenticationOptions
             {
+                AccessTokenProvider = new AuthenticationTokenProvider()
+                {
+                    OnCreate = context =>
+                    {
+                        context.SetToken(context.SerializeTicket());
+                    },
+                    OnReceive = context =>
+                    {
+                        context.DeserializeTicket(context.Token);
+                        context.OwinContext.Environment["Properties"] = context.Ticket.Properties;
+                    }
+                },
 
             };
 
