@@ -11,7 +11,7 @@ namespace AngularJSAuthentication.API.Controllers
     [RoutePrefix("api/products")]
     public class ProductsController : ApiController
     {
-        private const bool AddAllClaimsAsProducts = false;
+        private const bool AddAllClaimsAsProducts = true;
 
         [Authorize]
         [Route("")]

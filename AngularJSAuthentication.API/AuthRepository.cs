@@ -12,8 +12,25 @@ using System.Web;
 
 namespace AngularJSAuthentication.API
 {
+    public interface IAuthRepository
+    {
+        Task<IdentityResult> RegisterUser(UserModel userModel);
+        Task<IdentityUser> FindUser(string userName, string password);
+        Client FindClient(string clientId);
+        Task<bool> AddRefreshToken(RefreshToken token);
+        Task<bool> RemoveRefreshToken(string refreshTokenId);
+        Task<bool> RemoveRefreshToken(RefreshToken refreshToken);
+        Task<RefreshToken> FindRefreshToken(string refreshTokenId);
+        List<RefreshToken> GetAllRefreshTokens();
+        Task<IdentityUser> FindAsync(UserLoginInfo loginInfo);
+        Task<IdentityResult> UpdateAsync(IdentityUser loginInfo);
+        Task<IdentityResult> AddClaimAsync(UserModel userModel, Claim claim);
+        Task<IdentityResult> CreateAsync(IdentityUser user);
+        Task<IdentityResult> AddLoginAsync(string userId, UserLoginInfo login);
+        void Dispose();
+    }
 
-    public class AuthRepository : IDisposable
+    public class AuthRepository : IDisposable, IAuthRepository
     {
         private readonly AuthContext _ctx;
         private readonly UserManager<IdentityUser> _userManager;
