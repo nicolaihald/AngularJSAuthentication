@@ -20,6 +20,9 @@ namespace AngularJSAuthentication.API
 {
     public class Startup
     {
+
+        public static OAuthAuthorizationServerOptions OAuthServerOptions { get; private set; }
+
         public static OAuthBearerAuthenticationOptions OAuthBearerOptions { get; private set; }
         public static GoogleOAuth2AuthenticationOptions GoogleAuthOptions { get; private set; }
         public static FacebookAuthenticationOptions FacebookAuthOptions { get; private set; }
@@ -62,17 +65,22 @@ namespace AngularJSAuthentication.API
 
             };
 
-            var oAuthServerOptions = new OAuthAuthorizationServerOptions
+            var publicClientId = "ngAuthApp";
+            OAuthServerOptions = new OAuthAuthorizationServerOptions
             {
                 AllowInsecureHttp         = true,
                 TokenEndpointPath         = new PathString("/token"),
                 AccessTokenExpireTimeSpan = TimeSpan.FromMinutes(1),
-                Provider                  = new SimpleAuthorizationServerProvider(),
-                RefreshTokenProvider      = new SimpleRefreshTokenProvider()
+                Provider                  = new SimpleAuthorizationServerProvider(publicClientId),
+                RefreshTokenProvider      = new SimpleRefreshTokenProvider(),
+                Description = new AuthenticationDescription {}
+
             };
 
+            OAuthServerOptions.Description.Properties.Add("PublicClientId", publicClientId);
+
             // Token Generation
-            app.UseOAuthAuthorizationServer(oAuthServerOptions);
+            app.UseOAuthAuthorizationServer(OAuthServerOptions);
             app.UseOAuthBearerAuthentication(OAuthBearerOptions);
 
             #region --- Google Login: ---

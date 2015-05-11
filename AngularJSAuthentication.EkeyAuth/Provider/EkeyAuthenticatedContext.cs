@@ -35,7 +35,7 @@ namespace AngularJSAuthentication.EkeyAuth.Provider
             if (productsToken != null)
             {
                 var products = (from token in productsToken.Children()
-                                select (string) token["Isbn"])
+                                select (string) token["ProductId"])
                                 .ToList();
 
                 Products = String.Join(",", products);
