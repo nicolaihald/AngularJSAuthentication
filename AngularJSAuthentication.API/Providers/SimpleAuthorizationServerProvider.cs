@@ -32,8 +32,8 @@ namespace AngularJSAuthentication.API.Providers
         public override Task ValidateClientAuthentication(OAuthValidateClientAuthenticationContext context)
         {
 
-            string clientId = string.Empty;
-            string clientSecret = string.Empty;
+            string clientId;
+            string clientSecret;
             Client client = null;
 
             if (!context.TryGetBasicCredentials(out clientId, out clientSecret))
@@ -94,15 +94,13 @@ namespace AngularJSAuthentication.API.Providers
         public override async Task GrantResourceOwnerCredentials(OAuthGrantResourceOwnerCredentialsContext context)
         {
 
-            var allowedOrigin = context.OwinContext.Get<string>("as:clientAllowedOrigin");
-
-            if (allowedOrigin == null) allowedOrigin = "*";
+            var allowedOrigin = context.OwinContext.Get<string>("as:clientAllowedOrigin") ?? "*";
 
             context.OwinContext.Response.Headers.Add("Access-Control-Allow-Origin", new[] { allowedOrigin });
 
-            using (AuthRepository _repo = new AuthRepository())
+            using (AuthRepository repo = new AuthRepository())
             {
-                IdentityUser user = await _repo.FindUser(context.UserName, context.Password);
+                IdentityUser user = await repo.FindUser(context.UserName, context.Password);
 
                 if (user == null)
                 {
@@ -180,7 +178,10 @@ namespace AngularJSAuthentication.API.Providers
                 context.OwinContext.Response.Headers.Add("Access-Control-Allow-Origin", new[] { allowedOrigin });
 
 
-                var externalAccessToken = context.Parameters.Get("external_access_token") ?? "";
+                var token = context.Parameters.Get("external_access_token") ?? "";
+                var externalAccessToken = token.Replace(" ", "+");
+
+
                 var provider = context.Parameters.Get("provider") ?? "";
 
                 if (string.IsNullOrWhiteSpace(externalAccessToken))
@@ -266,7 +267,8 @@ namespace AngularJSAuthentication.API.Providers
             }
             else if (provider == "Ekey")
             {
-                verifyTokenEndPoint = string.Format("https://test-loginconnector.gyldendal.dk/api/LoggedInfo/GetAuthInfo?access_token={0}", accessToken);
+                verifyTokenEndPoint =
+                    string.Format("https://test-loginconnector.gyldendal.dk/api/LoggedInfo/GetAuthInfo"); //"?access_token={0}", accessToken);
 
                 // TEMP HACK:
                 var requestData = (dynamic)new JObject();

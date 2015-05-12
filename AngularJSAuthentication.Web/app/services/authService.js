@@ -158,6 +158,40 @@ app.factory('authService', ['$http', '$q', 'localStorageService', 'ngAuthSetting
 
     };
 
+
+    var _obtainAccessTokenUsingCustomGrant = function (externalData) {
+
+        var deferred = $q.defer();
+        //var data = {
+        //    grant_type: 'customtype',
+        //    client_id: externalData.client_id,
+        //    external_access_token: externalData.external_access_token,
+        //    provider: externalData.provider
+        //};
+
+        console.log(externalData.external_access_token);
+        var data = "grant_type=customtype" + "&client_id=" + externalData.client_id + "&external_access_token=" + encodeURI(externalData.external_access_token) + "&provider=" + externalData.provider;
+
+        $http.post(serviceBase + 'token', data, { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } })
+            .success(function (response) {
+
+                localStorageService.set('authorizationData', { token: response.access_token, userName: response.userName, refreshToken: response.refresh_token, useRefreshTokens: true });
+
+                _authentication.isAuth = true;
+                _authentication.userName = response.userName;
+                _authentication.useRefreshTokens = true;
+
+                deferred.resolve(response);
+
+            }).error(function (err, status) {
+                _logOut();
+                deferred.reject(err);
+            });
+
+        return deferred.promise;
+
+    };
+
     var _registerExternal = function (registerExternalData) {
 
         var deferred = $q.defer();
@@ -191,7 +225,8 @@ app.factory('authService', ['$http', '$q', 'localStorageService', 'ngAuthSetting
     // NEW
     authServiceFactory.setAuthData = _setAuthData;
 
-    authServiceFactory.obtainAccessToken = _obtainAccessToken;
+    //authServiceFactory.obtainAccessToken = _obtainAccessToken;
+    authServiceFactory.obtainAccessToken = _obtainAccessTokenUsingCustomGrant;
     authServiceFactory.externalAuthData = _externalAuthData;
     authServiceFactory.registerExternal = _registerExternal;
 

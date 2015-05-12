@@ -139,13 +139,14 @@ namespace AngularJSAuthentication.API.Controllers
 
             var localAccessToken = GenerateLocalAccessTokenResponse2(externalLogin);
 
-            redirectUri = string.Format("{0}#external_access_token={1}&provider={2}&haslocalaccount={3}&external_user_name={4}&access_token={5}",
+            redirectUri = string.Format("{0}#external_access_token={1}&provider={2}&haslocalaccount={3}&external_user_name={4}", //"&access_token={5}",
                                             redirectUri,
                                             externalLogin.ExternalAccessToken,
                                             externalLogin.LoginProvider,
                                             hasRegistered.ToString(),
-                                            externalLogin.UserName,
-                                            localAccessToken);
+                                            externalLogin.UserName
+                                            //localAccessToken
+                                            );
 
             return Redirect(redirectUri);
 
