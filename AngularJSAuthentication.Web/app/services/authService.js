@@ -170,7 +170,7 @@ app.factory('authService', ['$http', '$q', 'localStorageService', 'ngAuthSetting
         //};
 
         console.log(externalData.external_access_token);
-        var data = "grant_type=customtype" + "&client_id=" + externalData.client_id + "&external_access_token=" + encodeURI(externalData.external_access_token) + "&provider=" + externalData.provider;
+        var data = "grant_type=customtype" + "&client_id=" + ngAuthSettings.clientId + "&external_access_token=" + encodeURI(externalData.external_access_token) + "&provider=" + externalData.provider;
 
         $http.post(serviceBase + 'token', data, { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } })
             .success(function (response) {
