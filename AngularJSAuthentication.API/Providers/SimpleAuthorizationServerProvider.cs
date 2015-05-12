@@ -11,12 +11,15 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Web;
 using AngularJSAuthentication.API.Models;
+using Microsoft.AspNet.Identity;
+using Microsoft.AspNet.Identity.Owin;
 using Newtonsoft.Json.Linq;
 
 namespace AngularJSAuthentication.API.Providers
 {
     public class SimpleAuthorizationServerProvider : OAuthAuthorizationServerProvider
     {
+
         private string _publicClientId;
 
         public SimpleAuthorizationServerProvider(string publicClientId)
@@ -178,9 +181,9 @@ namespace AngularJSAuthentication.API.Providers
                 context.OwinContext.Response.Headers.Add("Access-Control-Allow-Origin", new[] { allowedOrigin });
 
 
-                var token = context.Parameters.Get("external_access_token") ?? "";
-                var externalAccessToken = token.Replace(" ", "+");
-
+                var externalAccessTokenFromContext = context.Parameters.Get("external_access_token") ?? "";
+                var externalAccessToken = externalAccessTokenFromContext.Replace(" ", "+"); 
+                // We need the hack above because we need to take the rather weird format of the LoginConnector-tokens into account.
 
                 var provider = context.Parameters.Get("provider") ?? "";
 
@@ -194,25 +197,29 @@ namespace AngularJSAuthentication.API.Providers
                     context.SetError("invalid_external_provider", "The external provider is invalid.");
                 }
 
-
-                var verifiedAccessToken = await VerifyExternalAccessToken(provider, externalAccessToken);
+                var verifiedAccessToken = await ExternalAccessTokenVerifier.VerifyToken(provider, externalAccessToken);
                 if (verifiedAccessToken == null)
                 {
                     context.SetError("invalid_external_accesstoken", "The external access token could not be verified!");
                 }
                 else
                 {
-
-                    //IdentityUser user = await _repo.FindAsync(new UserLoginInfo(provider, verifiedAccessToken.user_id));
+                    IdentityUser user;
+                    using (AuthRepository repo = new AuthRepository())
+                    {
+                        user = await repo.FindAsync(new UserLoginInfo(provider, verifiedAccessToken.user_id));
+                    }
 
                     //ExternalLoginInfo externalLoginInfo = await Authentication.GetExternalLoginInfoAsync();
+                    ExternalLoginInfo externalLoginInfo = await context.OwinContext.Authentication.GetExternalLoginInfoAsync();
 
-                    //bool hasRegistered = user != null;
+                    bool hasRegistered = user != null;
 
-                    //if (!hasRegistered)
-                    //{
-                    //    return BadRequest("External user is not registered");
-                    //}
+                    if (!hasRegistered)
+                    {
+                        context.SetError("external_user_not_registered", string.Format("The external ({0}) user is not registered. External userid: {1}", provider, verifiedAccessToken.user_id));
+                        return;
+                    }
 
 
                     identity.AddClaim(new Claim(ClaimTypes.Name, verifiedAccessToken.user_id));
@@ -245,115 +252,6 @@ namespace AngularJSAuthentication.API.Providers
         }
 
 
-
-
-        private async Task<ParsedExternalAccessToken> VerifyExternalAccessToken(string provider, string accessToken)
-        {
-            ParsedExternalAccessToken parsedToken = null;
-            var client = new HttpClient();
-
-            var verifyTokenEndPoint = "";
-
-            if (provider == "Facebook")
-            {
-                //You can get it from here: https://developers.facebook.com/tools/accesstoken/
-                //More about debug_tokn here: http://stackoverflow.com/questions/16641083/how-does-one-get-the-app-access-token-for-debug-token-inspection-on-facebook
-                var appToken = "xxxxxx";
-                verifyTokenEndPoint = string.Format("https://graph.facebook.com/debug_token?input_token={0}&access_token={1}", accessToken, appToken);
-            }
-            else if (provider == "Google")
-            {
-                verifyTokenEndPoint = string.Format("https://www.googleapis.com/oauth2/v1/tokeninfo?access_token={0}", accessToken);
-            }
-            else if (provider == "Ekey")
-            {
-                verifyTokenEndPoint =
-                    string.Format("https://test-loginconnector.gyldendal.dk/api/LoggedInfo/GetAuthInfo"); //"?access_token={0}", accessToken);
-
-                // TEMP HACK:
-                var requestData = (dynamic)new JObject();
-                requestData.subscriptionAuthentToken = accessToken;
-                requestData.clientWebShopName = Startup.EkeyAuthOptions.AppId;
-                requestData.SharedSecret = Startup.EkeyAuthOptions.AppSecret;
-
-                var loggedInfoRequest = new HttpRequestMessage(HttpMethod.Post, verifyTokenEndPoint);
-                loggedInfoRequest.Content = new StringContent(requestData.ToString(), Encoding.UTF8, "application/json");
-
-                loggedInfoRequest.Headers.Add("User-Agent", "OWIN Ekey OAuth Provider");
-                loggedInfoRequest.Headers.Add("LOGINCONNECTORAPIKEY", Startup.EkeyAuthOptions.ConnectorApiKey);
-
-                HttpResponseMessage loggedInfoResponse = await client.SendAsync(loggedInfoRequest);
-                loggedInfoResponse.EnsureSuccessStatusCode();
-                var text = await loggedInfoResponse.Content.ReadAsStringAsync();
-
-                JObject user = JObject.Parse(text);
-                JToken userInfo = user["UserLoggedInInfo"][0];
-
-                if (userInfo != null)
-                {
-                    var notValidatedToken = new ParsedExternalAccessToken();
-
-                    notValidatedToken.user_id = userInfo.Value<string>("UserIdentifier");
-                    notValidatedToken.app_id = Startup.EkeyAuthOptions.AppId;
-
-                    return notValidatedToken;
-                }
-            }
-            else
-            {
-                return null;
-            }
-
-
-            var uri = new Uri(verifyTokenEndPoint);
-            var response = await client.GetAsync(uri);
-
-            if (response.IsSuccessStatusCode)
-            {
-                var content = await response.Content.ReadAsStringAsync();
-
-                dynamic jObj = (JObject)Newtonsoft.Json.JsonConvert.DeserializeObject(content);
-
-                parsedToken = new ParsedExternalAccessToken();
-
-                if (provider == "Facebook")
-                {
-                    parsedToken.user_id = jObj["data"]["user_id"];
-                    parsedToken.app_id = jObj["data"]["app_id"];
-
-                    if (!string.Equals(Startup.FacebookAuthOptions.AppId, parsedToken.app_id, StringComparison.OrdinalIgnoreCase))
-                    {
-                        return null;
-                    }
-                }
-                else if (provider == "Google")
-                {
-                    parsedToken.user_id = jObj["user_id"];
-                    parsedToken.app_id = jObj["audience"];
-
-                    if (!string.Equals(Startup.GoogleAuthOptions.ClientId, parsedToken.app_id, StringComparison.OrdinalIgnoreCase))
-                    {
-                        return null;
-                    }
-
-                }
-
-                if (provider == "Ekey")
-                {
-                    parsedToken.user_id = jObj["UserLoggedInInfo"]["UserIdentifier"];
-                    parsedToken.app_id = jObj["UserLoggedInInfo"]["LoginProvider"];
-                    //parsedToken.app_id = jObj["UserLoggedInInfo"]["app_id"];
-
-                    if (!string.Equals(Startup.FacebookAuthOptions.AppId, parsedToken.app_id, StringComparison.OrdinalIgnoreCase))
-                    {
-                        return null;
-                    }
-                }
-
-            }
-
-            return parsedToken;
-        }
 
     }
 }
