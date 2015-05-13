@@ -48,8 +48,8 @@ namespace AngularJSAuthentication.API.Providers
             {
                 //Remove the comments from the below line context.SetError, and invalidate context 
                 //if you want to force sending clientId/secrects once obtain access tokens. 
-                context.Validated();
-                //context.SetError("invalid_clientId", "ClientId should be sent.");
+                //context.Validated();
+                context.SetError("invalid_clientId", "ClientId should be sent.");
                 return Task.FromResult<object>(null);
             }
 
@@ -99,7 +99,7 @@ namespace AngularJSAuthentication.API.Providers
 
             var allowedOrigin = context.OwinContext.Get<string>("as:clientAllowedOrigin") ?? "*";
 
-            context.OwinContext.Response.Headers.Add("Access-Control-Allow-Origin", new[] { allowedOrigin });
+            //context.OwinContext.Response.Headers.Add("Access-Control-Allow-Origin", new[] { allowedOrigin });
 
             using (AuthRepository repo = new AuthRepository())
             {
@@ -178,7 +178,7 @@ namespace AngularJSAuthentication.API.Providers
                 var identity = new ClaimsIdentity(context.Options.AuthenticationType);
 
                 var allowedOrigin = context.OwinContext.Get<string>("as:clientAllowedOrigin") ?? "*";
-                context.OwinContext.Response.Headers.Add("Access-Control-Allow-Origin", new[] { allowedOrigin });
+                //context.OwinContext.Response.Headers.Add("Access-Control-Allow-Origin", new[] { allowedOrigin });
 
 
                 var externalAccessTokenFromContext = context.Parameters.Get("external_access_token") ?? "";

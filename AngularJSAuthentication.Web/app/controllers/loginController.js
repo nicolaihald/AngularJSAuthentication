@@ -21,6 +21,18 @@ app.controller('loginController', ['$scope', '$location', 'authService', 'ngAuth
          });
     };
 
+    $scope.obtainAccessToken = function () {
+
+        authService.obtainAccessToken($scope.loginData).then(function (response) {
+
+            $location.path('/orders');
+
+        },
+         function (err) {
+             $scope.message = err.error_description;
+         });
+    };
+
     $scope.authExternalProvider = function (provider) {
 
         var redirectUri = location.protocol + '//' + location.host + '/authcomplete.html';

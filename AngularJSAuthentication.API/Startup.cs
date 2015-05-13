@@ -33,11 +33,9 @@ namespace AngularJSAuthentication.API
         {
             var config = new HttpConfiguration();
 
+
             ConfigureOAuth(app);
-
             WebApiConfig.Register(config);
-
-            app.UseCors(Microsoft.Owin.Cors.CorsOptions.AllowAll);
             app.UseWebApi(config);
 
             Database.SetInitializer(new MigrateDatabaseToLatestVersion<AuthContext, AngularJSAuthentication.API.Migrations.Configuration>());
@@ -46,6 +44,8 @@ namespace AngularJSAuthentication.API
 
         public void ConfigureOAuth(IAppBuilder app)
         {
+            app.UseCors(Microsoft.Owin.Cors.CorsOptions.AllowAll);
+
             //use a cookie to temporarily store information about a user logging in with a third party login provider
             app.UseExternalSignInCookie(Microsoft.AspNet.Identity.DefaultAuthenticationTypes.ExternalCookie);
             OAuthBearerOptions = new OAuthBearerAuthenticationOptions

@@ -37,6 +37,7 @@ app.controller('associateController', ['$scope', '$location', '$timeout', 'authS
             external_access_token: authService.externalAuthData.externalAccessToken
         };
 
+
         function register() {
             var dfd = $q.defer();
 
@@ -45,9 +46,7 @@ app.controller('associateController', ['$scope', '$location', '$timeout', 'authS
                 $scope.savedSuccessfully = true;
                 $scope.message = "User has been registered successfully, obtaining new access token. Please wait... ";
                 //startTimer();
-
                 dfd.resolve();
-
 
             },
             function (response) {
@@ -62,7 +61,6 @@ app.controller('associateController', ['$scope', '$location', '$timeout', 'authS
 
                 $scope.message = "Failed to register user due to:" + errors.join(' ');
                 dfd.reject($scope.message);
-
             });
 
             return dfd.promise;
@@ -96,7 +94,17 @@ app.controller('associateController', ['$scope', '$location', '$timeout', 'authS
             startTimer();
         };
 
-        register().then(obtainToken).then(redirect);
+
+        register().then(function(registerResult) {
+            console.log('register done', registerResult);
+            //setTimeout(function () {
+                console.log('now obtain token');
+                obtainToken().then(redirect);
+            //}, 4000);
+        });
+
+        console.log('registerExternalAndObtainAccessToken');
+
 
     };
 
