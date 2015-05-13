@@ -39,26 +39,26 @@ namespace AngularJSAuthentication.API.Controllers
         [Route("Register")]
         public async Task<IHttpActionResult> Register(UserModel userModel)
         {
-             if (!ModelState.IsValid)
+            if (!ModelState.IsValid)
             {
                 return BadRequest(ModelState);
             }
 
-             IdentityResult result = await _repo.RegisterUser(userModel);
+            IdentityResult result = await _repo.RegisterUser(userModel);
 
-             IHttpActionResult errorResult = GetErrorResult(result);
+            IHttpActionResult errorResult = GetErrorResult(result);
 
-             if (errorResult != null)
-             {
-                 return errorResult;
-             }
+            if (errorResult != null)
+            {
+                return errorResult;
+            }
 
-             return Ok();
+            return Ok();
         }
 
         // GET api/Account/ExternalLogin
 
-        
+
         /// <summary>
         /// 
         /// </summary>
@@ -89,10 +89,10 @@ namespace AngularJSAuthentication.API.Controllers
         /// After the user is registered, the client code will trigger the external login flow again to get the application bearer token.
         /// </remarks>
         /// <returns></returns>
-        [OverrideAuthentication] 
-        [HostAuthentication(DefaultAuthenticationTypes.ExternalCookie)] 
+        [OverrideAuthentication]
+        [HostAuthentication(DefaultAuthenticationTypes.ExternalCookie)]
         [AllowAnonymous]
-        [Route("ExternalLogin", Name = "ExternalLogin")]        
+        [Route("ExternalLogin", Name = "ExternalLogin")]
         public async Task<IHttpActionResult> GetExternalLogin(string provider, string error = null)
         {
             string redirectUri = string.Empty;
@@ -137,16 +137,23 @@ namespace AngularJSAuthentication.API.Controllers
             IdentityUser user = await _repo.FindAsync(new UserLoginInfo(externalLogin.LoginProvider, externalLogin.ProviderKey));
             bool hasRegistered = user != null;
 
+            
             var localAccessToken = GenerateLocalAccessTokenResponse2(externalLogin);
 
-            redirectUri = string.Format("{0}#external_access_token={1}&provider={2}&haslocalaccount={3}&external_user_name={4}", //"&access_token={5}",
+            //redirectUri = string.Format("{0}#external_access_token={1}&provider={2}&haslocalaccount={3}&external_user_name={4}&access_token={5}",
+            //                                redirectUri,
+            //                                externalLogin.ExternalAccessToken,
+            //                                externalLogin.LoginProvider,
+            //                                hasRegistered.ToString(),
+            //                                externalLogin.UserName,
+            //                                localAccessToken);
+
+            redirectUri = string.Format("{0}#external_access_token={1}&provider={2}&haslocalaccount={3}&external_user_name={4}",
                                             redirectUri,
                                             externalLogin.ExternalAccessToken,
                                             externalLogin.LoginProvider,
                                             hasRegistered.ToString(),
-                                            externalLogin.UserName
-                                            //localAccessToken
-                                            );
+                                            externalLogin.UserName);
 
             return Redirect(redirectUri);
 
@@ -386,7 +393,7 @@ namespace AngularJSAuthentication.API.Controllers
 
         //            notValidatedToken.user_id = userInfo.Value<string>("UserIdentifier");
         //            notValidatedToken.app_id = Startup.EkeyAuthOptions.AppId;
-                    
+
         //            return notValidatedToken;
         //        }
         //    }
@@ -459,10 +466,10 @@ namespace AngularJSAuthentication.API.Controllers
 
             if (externalLoginInfo != null)
             {
-                var externalIdentity = (ClaimsIdentity) externalLoginInfo.ExternalIdentity;
+                var externalIdentity = (ClaimsIdentity)externalLoginInfo.ExternalIdentity;
                 var productsClaim = externalIdentity.FindFirst("urn:ekey:products");
 
-                if(productsClaim != null)
+                if (productsClaim != null)
                     identity.AddClaim(productsClaim);
             }
 
@@ -492,6 +499,7 @@ namespace AngularJSAuthentication.API.Controllers
 
             var tokenExpiration = TimeSpan.FromDays(1);
 
+
             ClaimsIdentity identity = new ClaimsIdentity(OAuthDefaults.AuthenticationType);
 
             identity.AddClaim(new Claim(ClaimTypes.Name, externalLoginData.UserName));
@@ -499,14 +507,6 @@ namespace AngularJSAuthentication.API.Controllers
 
             var claimsToInclude = externalLoginData.ExternalClaims.Where(x => x.Type.StartsWith("urn")).ToList();
             identity.AddClaims(claimsToInclude);
-
-            //if (externalLoginInfo != null)
-            //{
-            //    var externalIdentity = (ClaimsIdentity)externalLoginInfo.ExternalIdentity;
-            //    var productsClaim = externalIdentity.FindFirst("urn:ekey:products");
-            //    if (productsClaim != null)
-            //        identity.AddClaim(productsClaim);
-            //}
 
             var props = new AuthenticationProperties()
             {

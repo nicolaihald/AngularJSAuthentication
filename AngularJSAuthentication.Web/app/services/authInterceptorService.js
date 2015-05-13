@@ -12,7 +12,7 @@ app.factory('authInterceptorService', ['$q', '$injector','$location', 'localStor
         if (authData) {
             config.headers.Authorization = 'Bearer ' + authData.token;
         }
-        console.log('config.headers', config.headers);
+        //console.log('config.headers', config.headers);
 
         return config;
     }
