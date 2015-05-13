@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Web;
+using Microsoft.Owin;
 
 namespace AngularJSAuthentication.API.Providers
 {
@@ -24,7 +25,7 @@ namespace AngularJSAuthentication.API.Providers
 
             var refreshTokenId = Guid.NewGuid().ToString("n");
 
-            using (AuthRepository _repo = new AuthRepository())
+            using (var repo = new AuthRepository())
             {
                 var refreshTokenLifeTime = context.OwinContext.Get<string>("as:clientRefreshTokenLifeTime"); 
                
@@ -42,7 +43,7 @@ namespace AngularJSAuthentication.API.Providers
                 
                 token.ProtectedTicket = context.SerializeTicket();
 
-                var result = await _repo.AddRefreshToken(token);
+                var result = await repo.AddRefreshToken(token);
 
                 if (result)
                 {
@@ -54,21 +55,19 @@ namespace AngularJSAuthentication.API.Providers
 
         public async Task ReceiveAsync(AuthenticationTokenReceiveContext context)
         {
-
-            var allowedOrigin = context.OwinContext.Get<string>("as:clientAllowedOrigin");
-            context.OwinContext.Response.Headers.Add("Access-Control-Allow-Origin", new[] { allowedOrigin });
+            SetAccessControlAllowOriginHeader(context.OwinContext);
 
             string hashedTokenId = Helper.GetHash(context.Token);
 
-            using (AuthRepository _repo = new AuthRepository())
+            using (var repo = new AuthRepository())
             {
-                var refreshToken = await _repo.FindRefreshToken(hashedTokenId);
+                var refreshToken = await repo.FindRefreshToken(hashedTokenId);
 
                 if (refreshToken != null )
                 {
                     //Get protectedTicket from refreshToken class
                     context.DeserializeTicket(refreshToken.ProtectedTicket);
-                    var result = await _repo.RemoveRefreshToken(hashedTokenId);
+                    var result = await repo.RemoveRefreshToken(hashedTokenId);
                 }
             }
         }
@@ -81,6 +80,16 @@ namespace AngularJSAuthentication.API.Providers
         public void Receive(AuthenticationTokenReceiveContext context)
         {
             throw new NotImplementedException();
+        }
+
+
+        private static void SetAccessControlAllowOriginHeader(IOwinContext context)
+        {
+            var allowedOrigin = context.Get<string>("as:clientAllowedOrigin") ?? "*";
+
+            const string allowOriginHeaderKey = "Access-Control-Allow-Origin";
+            if (!context.Response.Headers.ContainsKey(allowOriginHeaderKey))
+                context.Response.Headers.Add(allowOriginHeaderKey, new[] { allowedOrigin });
         }
     }
 }

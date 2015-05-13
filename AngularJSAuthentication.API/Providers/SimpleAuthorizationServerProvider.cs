@@ -1,19 +1,16 @@
-﻿using AngularJSAuthentication.API.Entities;
-using Microsoft.AspNet.Identity.EntityFramework;
-using Microsoft.Owin.Security;
-using Microsoft.Owin.Security.OAuth;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Net.Http;
 using System.Security.Claims;
-using System.Text;
 using System.Threading.Tasks;
-using System.Web;
+using AngularJSAuthentication.API.Entities;
 using AngularJSAuthentication.API.Models;
 using Microsoft.AspNet.Identity;
+using Microsoft.AspNet.Identity.EntityFramework;
 using Microsoft.AspNet.Identity.Owin;
-using Newtonsoft.Json.Linq;
+using Microsoft.Owin;
+using Microsoft.Owin.Security;
+using Microsoft.Owin.Security.OAuth;
 
 namespace AngularJSAuthentication.API.Providers
 {
@@ -26,7 +23,7 @@ namespace AngularJSAuthentication.API.Providers
         {
             if (publicClientId == null)
             {
-                throw new ArgumentNullException("publicClientId");
+                throw new ArgumentNullException(nameof(publicClientId));
             }
 
             _publicClientId = publicClientId;
@@ -53,9 +50,9 @@ namespace AngularJSAuthentication.API.Providers
                 return Task.FromResult<object>(null);
             }
 
-            using (AuthRepository _repo = new AuthRepository())
+            using (var repo = new AuthRepository())
             {
-                client = _repo.FindClient(context.ClientId);
+                client = repo.FindClient(context.ClientId);
             }
 
             if (client == null)
@@ -64,7 +61,7 @@ namespace AngularJSAuthentication.API.Providers
                 return Task.FromResult<object>(null);
             }
 
-            if (client.ApplicationType == Models.ApplicationTypes.NativeConfidential)
+            if (client.ApplicationType == ApplicationTypes.NativeConfidential)
             {
                 if (string.IsNullOrWhiteSpace(clientSecret))
                 {
@@ -96,10 +93,7 @@ namespace AngularJSAuthentication.API.Providers
 
         public override async Task GrantResourceOwnerCredentials(OAuthGrantResourceOwnerCredentialsContext context)
         {
-
-            var allowedOrigin = context.OwinContext.Get<string>("as:clientAllowedOrigin") ?? "*";
-
-            //context.OwinContext.Response.Headers.Add("Access-Control-Allow-Origin", new[] { allowedOrigin });
+            SetAccessControlAllowOriginHeader(context.OwinContext);
 
             using (AuthRepository repo = new AuthRepository())
             {
@@ -175,14 +169,14 @@ namespace AngularJSAuthentication.API.Providers
         {
             if (context.GrantType == "customtype")
             {
+
                 var identity = new ClaimsIdentity(context.Options.AuthenticationType);
 
-                var allowedOrigin = context.OwinContext.Get<string>("as:clientAllowedOrigin") ?? "*";
-                //context.OwinContext.Response.Headers.Add("Access-Control-Allow-Origin", new[] { allowedOrigin });
+                SetAccessControlAllowOriginHeader(context.OwinContext);
 
 
                 var externalAccessTokenFromContext = context.Parameters.Get("external_access_token") ?? "";
-                var externalAccessToken = externalAccessTokenFromContext.Replace(" ", "+"); 
+                var externalAccessToken = externalAccessTokenFromContext.Replace(" ", "+");
                 // We need the hack above because we need to take the rather weird format of the LoginConnector-tokens into account.
 
                 var provider = context.Parameters.Get("provider") ?? "";
@@ -205,12 +199,11 @@ namespace AngularJSAuthentication.API.Providers
                 else
                 {
                     IdentityUser user;
-                    using (AuthRepository repo = new AuthRepository())
+                    using (var repo = new AuthRepository())
                     {
                         user = await repo.FindAsync(new UserLoginInfo(provider, verifiedAccessToken.user_id));
                     }
 
-                    //ExternalLoginInfo externalLoginInfo = await Authentication.GetExternalLoginInfoAsync();
                     ExternalLoginInfo externalLoginInfo = await context.OwinContext.Authentication.GetExternalLoginInfoAsync();
 
                     bool hasRegistered = user != null;
@@ -240,8 +233,6 @@ namespace AngularJSAuthentication.API.Providers
                     context.Validated(ticket);
                 }
 
-
-
                 //context.Validated(identity);
             }
 
@@ -252,6 +243,13 @@ namespace AngularJSAuthentication.API.Providers
         }
 
 
+        private static void SetAccessControlAllowOriginHeader(IOwinContext context)
+        {
+            var allowedOrigin = context.Get<string>("as:clientAllowedOrigin") ?? "*";
 
+            const string allowOriginHeaderKey = "Access-Control-Allow-Origin";
+            if (!context.Response.Headers.ContainsKey(allowOriginHeaderKey))
+                context.Response.Headers.Add(allowOriginHeaderKey, new[] {allowedOrigin});
+        }
     }
 }

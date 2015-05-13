@@ -313,9 +313,10 @@ namespace AngularJSAuthentication.API.Controllers
                 return string.Format("Client_id '{0}' is not registered in the system.", clientId);
             }
 
-            if (!string.Equals(client.AllowedOrigin, redirectUri.GetLeftPart(UriPartial.Authority), StringComparison.OrdinalIgnoreCase))
+
+            if (!string.IsNullOrEmpty(client.AllowedOrigin) && !string.Equals(client.AllowedOrigin, redirectUri.GetLeftPart(UriPartial.Authority), StringComparison.OrdinalIgnoreCase))
             {
-                return string.Format("The given URL is not allowed by Client_id '{0}' configuration.", clientId);
+                return string.Format("The given URL is not allowed by the configuration for client_id: '{0}'.", clientId);
             }
 
             redirectUriOutput = redirectUri.AbsoluteUri;
