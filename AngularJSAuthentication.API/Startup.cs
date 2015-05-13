@@ -44,10 +44,8 @@ namespace AngularJSAuthentication.API
 
         public void ConfigureOAuth(IAppBuilder app)
         {
-            app.UseCors(Microsoft.Owin.Cors.CorsOptions.AllowAll);
 
-            //use a cookie to temporarily store information about a user logging in with a third party login provider
-            app.UseExternalSignInCookie(Microsoft.AspNet.Identity.DefaultAuthenticationTypes.ExternalCookie);
+            #region Setup various static oauth options
             OAuthBearerOptions = new OAuthBearerAuthenticationOptions
             {
                 AccessTokenProvider = new AuthenticationTokenProvider()
@@ -68,20 +66,30 @@ namespace AngularJSAuthentication.API
             var publicClientId = "ngAuthApp";
             OAuthServerOptions = new OAuthAuthorizationServerOptions
             {
-                AllowInsecureHttp         = true,
-                TokenEndpointPath         = new PathString("/token"),
+                AllowInsecureHttp = true,
+                TokenEndpointPath = new PathString("/token"),
                 AccessTokenExpireTimeSpan = TimeSpan.FromMinutes(1),
-                Provider                  = new SimpleAuthorizationServerProvider(publicClientId),
-                RefreshTokenProvider      = new SimpleRefreshTokenProvider(),
-                Description = new AuthenticationDescription {}
+                Provider = new SimpleAuthorizationServerProvider(publicClientId),
+                RefreshTokenProvider = new SimpleRefreshTokenProvider(),
+                Description = new AuthenticationDescription { }
 
             };
 
             OAuthServerOptions.Description.Properties.Add("PublicClientId", publicClientId);
 
-            // Token Generation
-            app.UseOAuthAuthorizationServer(OAuthServerOptions);
+            #endregion
+
+            app.UseCors(Microsoft.Owin.Cors.CorsOptions.AllowAll);
+
+            //use a cookie to temporarily store information about a user logging in with a third party login provider
+            app.UseExternalSignInCookie(Microsoft.AspNet.Identity.DefaultAuthenticationTypes.ExternalCookie);
+
+            // Local Token Generation
             app.UseOAuthBearerAuthentication(OAuthBearerOptions);
+            // NOTE: The actual order is important. UseOAuthBearerAuthentication calls UseStageMarker(PipelineStage.Authenticate); 
+            // to make it (and everything before it) run earlier in the ASP.NET pipeline
+
+            app.UseOAuthAuthorizationServer(OAuthServerOptions);
 
             #region --- Google Login: ---
             //Configure Google External Login
