@@ -204,10 +204,8 @@ namespace AngularJSAuthentication.API.Providers
                         user = await repo.FindAsync(new UserLoginInfo(provider, verifiedAccessToken.user_id));
                     }
 
-                    ExternalLoginInfo externalLoginInfo = await context.OwinContext.Authentication.GetExternalLoginInfoAsync();
 
                     bool hasRegistered = user != null;
-
                     if (!hasRegistered)
                     {
                         context.SetError("external_user_not_registered", string.Format("The external ({0}) user is not registered. External userid: {1}", provider, verifiedAccessToken.user_id));
@@ -216,8 +214,14 @@ namespace AngularJSAuthentication.API.Providers
 
 
                     identity.AddClaim(new Claim(ClaimTypes.Name, verifiedAccessToken.user_id));
-                    identity.AddClaim(new Claim(ClaimTypes.Role, "user"));
-                    identity.AddClaim(new Claim("sub", verifiedAccessToken.user_id));
+                    //identity.AddClaim(new Claim(ClaimTypes.Role, "user"));
+                    //identity.AddClaim(new Claim("sub", verifiedAccessToken.user_id));
+
+                    foreach (var claim in user.Claims)
+                    {
+                        identity.AddClaim(new Claim(claim.ClaimType, claim.ClaimValue));
+                    }
+
 
                     var props = new AuthenticationProperties(new Dictionary<string, string>
                     {

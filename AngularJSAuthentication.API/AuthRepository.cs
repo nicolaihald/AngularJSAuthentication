@@ -24,7 +24,10 @@ namespace AngularJSAuthentication.API
         List<RefreshToken> GetAllRefreshTokens();
         Task<IdentityUser> FindAsync(UserLoginInfo loginInfo);
         Task<IdentityResult> UpdateAsync(IdentityUser loginInfo);
-        Task<IdentityResult> AddClaimAsync(UserModel userModel, Claim claim);
+        Task<IdentityResult> AddClaimAsync(string userId, Claim claim);
+
+        Task<IdentityResult> RemoveClaimAsync(string userId, Claim claim);
+
         Task<IdentityResult> CreateAsync(IdentityUser user);
         Task<IdentityResult> AddLoginAsync(string userId, UserLoginInfo login);
         void Dispose();
@@ -125,11 +128,19 @@ namespace AngularJSAuthentication.API
             return result;
         }
 
-        public async Task<IdentityResult> AddClaimAsync(UserModel userModel, Claim claim)
+        public async Task<IdentityResult> AddClaimAsync(string userId, Claim claim)
         {
-            var result = await _userManager.AddClaimAsync(userModel.UserName, claim);
+            var result = await _userManager.AddClaimAsync(userId, claim);
             return result;
         }
+
+        public async Task<IdentityResult> RemoveClaimAsync(string userId, Claim claim)
+        {
+            var result = await _userManager.RemoveClaimAsync(userId, claim);
+            return result;
+        }
+
+
 
 
         public async Task<IdentityResult> CreateAsync(IdentityUser user)

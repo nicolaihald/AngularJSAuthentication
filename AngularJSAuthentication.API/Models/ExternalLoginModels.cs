@@ -20,11 +20,15 @@ namespace AngularJSAuthentication.API.Models
         [Required]
         public string UserName { get; set; }
 
-         [Required]
+        [Required]
         public string Provider { get; set; }
 
-         [Required]
-         public string ExternalAccessToken { get; set; }
+        [Required]
+        public string ExternalAccessToken { get; set; }
+
+        // NEW
+        public string State { get; set; }
+
 
     }
 

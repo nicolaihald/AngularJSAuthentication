@@ -7,7 +7,9 @@ app.controller('associateController', ['$scope', '$location', '$timeout', 'authS
     $scope.registerData = {
         userName: authService.externalAuthData.userName,
         provider: authService.externalAuthData.provider,
-        externalAccessToken: authService.externalAuthData.externalAccessToken
+        externalAccessToken: authService.externalAuthData.externalAccessToken,
+        state: authService.externalAuthData.state
+
     };
 
     $scope.registerExternal = function () {
@@ -34,7 +36,8 @@ app.controller('associateController', ['$scope', '$location', '$timeout', 'authS
         var obtainAccessTokenData = {
             userName: authService.externalAuthData.userName,
             provider: authService.externalAuthData.provider,
-            external_access_token: authService.externalAuthData.externalAccessToken
+            external_access_token: authService.externalAuthData.externalAccessToken,
+            state: authService.externalAuthData.state
         };
 
 

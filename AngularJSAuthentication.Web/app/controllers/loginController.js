@@ -56,7 +56,9 @@ app.controller('loginController', ['$scope', '$location', 'authService', 'ngAuth
                 authService.externalAuthData = {
                     provider: fragment.provider,
                     userName: fragment.external_user_name,
-                    externalAccessToken: fragment.external_access_token
+                    externalAccessToken: fragment.external_access_token,
+                    state: fragment.state
+
                 };
 
                 $location.path('/associate');
@@ -78,7 +80,7 @@ app.controller('loginController', ['$scope', '$location', 'authService', 'ngAuth
                 } else {
                    
                     //Obtain access token and redirect to orders
-                    var externalData = { provider: fragment.provider, external_access_token: fragment.external_access_token, client_id: ngAuthSettings.clientId };
+                    var externalData = { provider: fragment.provider, external_access_token: fragment.external_access_token, client_id: ngAuthSettings.clientId, state:fragment.state };
                     authService.obtainAccessToken(externalData)
                         .then(function (response) {
 

@@ -14,6 +14,7 @@ using Owin;
 using System;
 using System.Data.Entity;
 using System.Web.Http;
+using Microsoft.Owin.Security.DataProtection;
 
 [assembly: OwinStartup(typeof(AngularJSAuthentication.API.Startup))]
 namespace AngularJSAuthentication.API
@@ -28,6 +29,8 @@ namespace AngularJSAuthentication.API
         public static FacebookAuthenticationOptions FacebookAuthOptions { get; private set; }
 
         public static EkeyAuthenticationOptions EkeyAuthOptions { get; private set; }
+
+        public static IDataProtector DataProtector { get; private set; }
 
         public void Configuration(IAppBuilder app)
         {
@@ -44,6 +47,7 @@ namespace AngularJSAuthentication.API
 
         public void ConfigureOAuth(IAppBuilder app)
         {
+            DataProtector = app.CreateDataProtector();
 
             #region Setup various static oauth options
             OAuthBearerOptions = new OAuthBearerAuthenticationOptions
@@ -141,7 +145,6 @@ namespace AngularJSAuthentication.API
                         // Subsequently adding a claim here will also send this claim
                         // as part of the cookie set on the browser so you can retrieve
                         // on every successive request. 
-                        context.Identity.AddClaim(new Claim("TEST", "NICO"));
                         context.Identity.AddClaim(new Claim("ExternalAccessToken", context.AccessToken));
 
                         return Task.FromResult(0);
@@ -153,6 +156,7 @@ namespace AngularJSAuthentication.API
 
 
         }
+
     }
 
 }

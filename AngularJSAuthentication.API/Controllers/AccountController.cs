@@ -13,6 +13,7 @@ using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Security.Claims;
+using System.Security.Cryptography;
 using System.Threading.Tasks;
 using System.Web;
 using System.Web.Http;
@@ -137,8 +138,50 @@ namespace AngularJSAuthentication.API.Controllers
             IdentityUser user = await _repo.FindAsync(new UserLoginInfo(externalLogin.LoginProvider, externalLogin.ProviderKey));
             bool hasRegistered = user != null;
 
-            
-            var localAccessToken = GenerateLocalAccessTokenResponse2(externalLogin);
+
+            var state = "Nicolai";
+            var stateProtected = "";
+
+            var identity = User.Identity as ClaimsIdentity;
+            var claimsToAdd = loginInfo.ExternalIdentity.Claims.ToList();
+
+            if (hasRegistered)
+            {
+                var claimsToRemove = new List<Claim>();
+                foreach (var claim in user.Claims.ToClaimsList(identity))
+                {
+                    var match = loginInfo.ExternalIdentity.Claims.FirstOrDefault(x => x.Type == claim.Type);
+                    if (match != null)
+                        claimsToRemove.Add(claim);
+                }
+
+                foreach (var obsoleteClaim in claimsToRemove)
+                {
+                    await _repo.RemoveClaimAsync(user.Id, obsoleteClaim);
+                }
+
+                foreach (var freshClaim in claimsToAdd)
+                {
+                    await _repo.AddClaimAsync(user.Id, freshClaim);
+                }
+
+            }
+            else
+            {
+                state = string.Join(";", claimsToAdd.Select(x => string.Format("{0},{1}", x.Type, x.Value)).ToList());
+                stateProtected = state.Protect();
+            }
+
+
+            //var localAccessToken = await GenerateLocalAccessTokenResponse2(externalLogin);
+
+            redirectUri = string.Format("{0}#external_access_token={1}&provider={2}&haslocalaccount={3}&external_user_name={4}&state={5}",
+                                           redirectUri,
+                                           externalLogin.ExternalAccessToken,
+                                           externalLogin.LoginProvider,
+                                           hasRegistered.ToString(),
+                                           externalLogin.UserName,
+                                           stateProtected);
 
             //redirectUri = string.Format("{0}#external_access_token={1}&provider={2}&haslocalaccount={3}&external_user_name={4}&access_token={5}",
             //                                redirectUri,
@@ -148,12 +191,12 @@ namespace AngularJSAuthentication.API.Controllers
             //                                externalLogin.UserName,
             //                                localAccessToken);
 
-            redirectUri = string.Format("{0}#external_access_token={1}&provider={2}&haslocalaccount={3}&external_user_name={4}",
-                                            redirectUri,
-                                            externalLogin.ExternalAccessToken,
-                                            externalLogin.LoginProvider,
-                                            hasRegistered.ToString(),
-                                            externalLogin.UserName);
+            //redirectUri = string.Format("{0}#external_access_token={1}&provider={2}&haslocalaccount={3}&external_user_name={4}",
+            //                                redirectUri,
+            //                                externalLogin.ExternalAccessToken,
+            //                                externalLogin.LoginProvider,
+            //                                hasRegistered.ToString(),
+            //                                externalLogin.UserName);
 
             return Redirect(redirectUri);
 
@@ -205,8 +248,26 @@ namespace AngularJSAuthentication.API.Controllers
                 return GetErrorResult(result);
             }
 
+
+            string state = null;
+            try
+            {
+                state = model.State.Unprotect();
+            }
+            catch (CryptographicException)
+            {
+                // Possible causes:
+                // - the entropy is not the one used for encryption
+                // - the data was encrypted by another user (for scope == CurrentUser)
+                // - the data was encrypted on another machine (for scope == LocalMachine)
+                // In this case, the stored password is not usable; just prompt the user to enter it again.
+                return BadRequest("State was invalid!");
+
+            }
+
+
             //generate access token response
-            var accessTokenResponse = GenerateLocalAccessTokenResponse(model.UserName);
+            var accessTokenResponse = GenerateLocalAccessTokenResponse(model.UserName + state);
 
             return Ok(accessTokenResponse);
         }
@@ -494,7 +555,7 @@ namespace AngularJSAuthentication.API.Controllers
             return tokenResponse;
         }
 
-        private string GenerateLocalAccessTokenResponse2(ExternalLoginData externalLoginData)
+        private async Task<string> GenerateLocalAccessTokenResponse2(ExternalLoginData externalLoginData)
         {
 
             var tokenExpiration = TimeSpan.FromDays(1);
@@ -507,6 +568,17 @@ namespace AngularJSAuthentication.API.Controllers
 
             var claimsToInclude = externalLoginData.ExternalClaims.Where(x => x.Type.StartsWith("urn")).ToList();
             identity.AddClaims(claimsToInclude);
+
+
+            // persist state during the login process, using claims: 
+            var loginInfo = await Authentication.GetExternalLoginInfoAsync();
+            if (loginInfo != null)
+            {
+                foreach (var externalClaim in loginInfo.ExternalIdentity.Claims)
+                {
+                    identity.AddClaim(new Claim("EXT_" + externalClaim.Type, externalClaim.Value));
+                }
+            }
 
             var props = new AuthenticationProperties()
             {
@@ -570,5 +642,42 @@ namespace AngularJSAuthentication.API.Controllers
         }
 
         #endregion
+
+
+
+
+    }
+
+    public static class DataProtectionExtensions
+    {
+        public static string Protect(
+            this string clearText,
+            string optionalEntropy = null,
+            DataProtectionScope scope = DataProtectionScope.CurrentUser)
+        {
+            if (clearText == null)
+                throw new ArgumentNullException(nameof(clearText));
+            byte[] clearBytes = Encoding.UTF8.GetBytes(clearText);
+            byte[] entropyBytes = string.IsNullOrEmpty(optionalEntropy)
+                ? null
+                : Encoding.UTF8.GetBytes(optionalEntropy);
+            byte[] encryptedBytes = ProtectedData.Protect(clearBytes, entropyBytes, scope);
+            return Convert.ToBase64String(encryptedBytes);
+        }
+
+        public static string Unprotect(
+            this string encryptedText,
+            string optionalEntropy = null,
+            DataProtectionScope scope = DataProtectionScope.CurrentUser)
+        {
+            if (encryptedText == null)
+                throw new ArgumentNullException(nameof(encryptedText));
+            byte[] encryptedBytes = Convert.FromBase64String(encryptedText);
+            byte[] entropyBytes = string.IsNullOrEmpty(optionalEntropy)
+                ? null
+                : Encoding.UTF8.GetBytes(optionalEntropy);
+            byte[] clearBytes = ProtectedData.Unprotect(encryptedBytes, entropyBytes, scope);
+            return Encoding.UTF8.GetString(clearBytes);
+        }
     }
 }
