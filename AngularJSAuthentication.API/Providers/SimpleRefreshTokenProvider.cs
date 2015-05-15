@@ -5,8 +5,10 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Claims;
 using System.Threading.Tasks;
 using System.Web;
+using Microsoft.AspNet.Identity;
 using Microsoft.Owin;
 
 namespace AngularJSAuthentication.API.Providers
@@ -67,6 +69,39 @@ namespace AngularJSAuthentication.API.Providers
                 {
                     //Get protectedTicket from refreshToken class
                     context.DeserializeTicket(refreshToken.ProtectedTicket);
+
+                    #region --- RELOAD USER AND REFRESH CLAIMS: ---
+                    // In order to be able to reload/refresh the user, we obviously need to be able to identify the user in our underlying identity provider datastore.
+                    // We're achieving this by storing this info ("LoginProvider" and "LoginProviderKey") in the AuthenticationProperties of the ticket during the authentication process.
+                    // The values are added SimpleAuthorizationServerProvider.GrantCustomExtension. 
+
+                    string loginProvider, providerKey;
+                    context.Ticket.Properties.Dictionary.TryGetValue("LoginProvider", out loginProvider);
+                    context.Ticket.Properties.Dictionary.TryGetValue("LoginProviderKey", out providerKey);
+
+                    var identity = context.Ticket.Identity;
+                    AuthenticationTicket newTicket = null;
+
+                    if (loginProvider != null)
+                    {
+                        var user = await repo.FindAsync(new UserLoginInfo(loginProvider, providerKey));
+                        if (user != null)
+                        {
+                            var userClaims = identity.Claims.ToList();
+                            for (int i = 0; i < userClaims.Count-1; i++)
+                            {
+                                identity.RemoveClaim(userClaims[i]);
+                            }
+                            // refresh claims 
+                            identity.AddClaims(user.Claims.ToClaimsList(identity));
+                            identity.AddClaim(new Claim("TIMESTAMP_USER_REFRESHED", DateTimeOffset.UtcNow.ToString()));
+                        }
+                    }
+
+                    newTicket = new AuthenticationTicket(identity, context.Ticket.Properties);
+                    context.SetTicket(newTicket);
+                    #endregion
+
                     var result = await repo.RemoveRefreshToken(hashedTokenId);
                 }
             }

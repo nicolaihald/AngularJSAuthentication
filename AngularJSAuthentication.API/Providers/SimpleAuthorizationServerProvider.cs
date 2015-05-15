@@ -230,7 +230,16 @@ namespace AngularJSAuthentication.API.Providers
                         },
                         {
                             "userName", verifiedAccessToken.user_id
-                        }
+                        },
+
+                        {
+                            "LoginProvider", provider
+                        },
+
+                        {
+                            "LoginProviderKey", verifiedAccessToken.user_id
+                        },
+
                     });
 
                     var ticket = new AuthenticationTicket(identity, props);
