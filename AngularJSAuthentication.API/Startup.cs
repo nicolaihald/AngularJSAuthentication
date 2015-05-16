@@ -13,7 +13,10 @@ using Microsoft.Owin.Security.OAuth;
 using Owin;
 using System;
 using System.Data.Entity;
+using System.IO;
+using System.Runtime.Serialization.Formatters.Binary;
 using System.Web.Http;
+using Microsoft.Owin.Security.DataHandler;
 using Microsoft.Owin.Security.DataProtection;
 
 [assembly: OwinStartup(typeof(AngularJSAuthentication.API.Startup))]
@@ -30,7 +33,7 @@ namespace AngularJSAuthentication.API
 
         public static EkeyAuthenticationOptions EkeyAuthOptions { get; private set; }
 
-        public static IDataProtector DataProtector { get; private set; }
+        public static ISecureDataFormat<AuthenticationTicket> TicketDataProtector { get; private set; }
 
         public void Configuration(IAppBuilder app)
         {
@@ -45,9 +48,12 @@ namespace AngularJSAuthentication.API
 
         }
 
+
+
         public void ConfigureOAuth(IAppBuilder app)
         {
-            DataProtector = app.CreateDataProtector();
+            // only used for protecting temporary tickets/state passed back and forth between the client and the server during the login registration process. 
+            TicketDataProtector = new TicketDataFormat(app.CreateDataProtector());
 
             #region Setup various static oauth options
             OAuthBearerOptions = new OAuthBearerAuthenticationOptions

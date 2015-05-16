@@ -75,7 +75,7 @@ app.controller('loginController', ['$scope', '$location', 'authService', 'ngAuth
                         useRefreshTokens: false
                     });
 
-                    $location.path('/orders');
+                    $location.path('/products');
 
                 } else {
                    
@@ -84,7 +84,7 @@ app.controller('loginController', ['$scope', '$location', 'authService', 'ngAuth
                     authService.obtainAccessToken(externalData)
                         .then(function (response) {
 
-                            $location.path('/orders');
+                            $location.path('/products');
                         },
                         function(err) {
                              $scope.message = err.error_description;

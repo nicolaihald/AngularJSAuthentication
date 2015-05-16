@@ -9,14 +9,18 @@ using Microsoft.Owin.Security.OAuth;
 using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
+using System.Runtime.Serialization.Formatters.Binary;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Threading.Tasks;
 using System.Web;
 using System.Web.Http;
+using Microsoft.Owin.Security.DataHandler;
+using Microsoft.Owin.Security.DataProtection;
 
 namespace AngularJSAuthentication.API.Controllers
 {
@@ -29,6 +33,19 @@ namespace AngularJSAuthentication.API.Controllers
         {
             get { return Request.GetOwinContext().Authentication; }
         }
+
+        private byte[] ObjectToByteArray(Object obj)
+        {
+            if (obj == null)
+                return null;
+            BinaryFormatter bf = new BinaryFormatter();
+            using (MemoryStream ms = new MemoryStream())
+            {
+                bf.Serialize(ms, obj);
+                return ms.ToArray();
+            }
+        }
+
 
         public AccountController()
         {
@@ -168,8 +185,25 @@ namespace AngularJSAuthentication.API.Controllers
             }
             else
             {
-                state = string.Join(";", claimsToAdd.Select(x => string.Format("{0},{1}", x.Type, x.Value)).ToList());
-                stateProtected = state.Protect();
+
+                // VERSION #1
+                // In order to preserve external claims (state) during the login registration process, we're wrapping any external claims in a "protected" AuthenticationTicket, which then
+                // gets passed back to the client. 
+
+                ClaimsIdentity tempIdentity = new ClaimsIdentity(claimsToAdd, "TEMP");
+                AuthenticationTicket tempTicket = new AuthenticationTicket(tempIdentity, new AuthenticationProperties());
+
+                try
+                {
+                    stateProtected = Startup.TicketDataProtector.Protect(tempTicket);
+                }
+                catch (Exception ex)
+                {
+                    throw;
+                }
+
+                //state = string.Join(";", claimsToAdd.Select(x => string.Format("{0},{1}", x.Type, x.Value)).ToList());
+                //stateProtected = state.Protect();
             }
 
 
@@ -250,9 +284,10 @@ namespace AngularJSAuthentication.API.Controllers
 
 
             string state = null;
+            AuthenticationTicket temporaryTicket;
             try
             {
-                state = model.State.Unprotect();
+                temporaryTicket = Startup.TicketDataProtector.Unprotect(model.State);
             }
             catch (CryptographicException)
             {
@@ -264,6 +299,13 @@ namespace AngularJSAuthentication.API.Controllers
                 return BadRequest("State was invalid!");
 
             }
+
+
+            if (temporaryTicket != null)
+                foreach (var freshClaim in temporaryTicket.Identity.Claims)
+                {
+                    await _repo.AddClaimAsync(user.Id, freshClaim);
+                }
 
 
             //generate access token response
