@@ -109,6 +109,7 @@ namespace AngularJSAuthentication.API
                 ClientId = "659454074090-vhh7va2nd2p9ffhahs5jq72tg7k4b277.apps.googleusercontent.com",
                 ClientSecret = "Xgr-lpBU8W_r7PBEE-zqNJT1",
                 Provider = new GoogleAuthProvider(),
+                Scope = { @"https://www.googleapis.com/auth/userinfo.profile" }
                
             };
             app.UseGoogleAuthentication(GoogleAuthOptions);

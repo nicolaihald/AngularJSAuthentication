@@ -210,7 +210,10 @@ namespace AngularJSAuthentication.API.Providers
                     }
 
 
-                    identity.AddClaim(new Claim(ClaimTypes.Name, verifiedAccessToken.user_id));
+                    identity.AddClaim(new Claim("urn:app:username", user.UserName ?? verifiedAccessToken.user_id));                    
+                    identity.AddClaim(new Claim("urn:app:loginprovider", provider));                    
+                    identity.AddClaim(new Claim("urn:app:loginproviderkey", verifiedAccessToken.user_id));                    
+                    //identity.AddClaim(new Claim(ClaimTypes.Name, verifiedAccessToken.user_id));
                     //identity.AddClaim(new Claim(ClaimTypes.Role, "user"));
                     //identity.AddClaim(new Claim("sub", verifiedAccessToken.user_id));
 
@@ -226,7 +229,7 @@ namespace AngularJSAuthentication.API.Providers
                             "as:client_id", context.ClientId ?? string.Empty
                         },
                         {
-                            "userName", verifiedAccessToken.user_id
+                            "userName", user.UserName// verifiedAccessToken.user_id
                         },
 
                         {
