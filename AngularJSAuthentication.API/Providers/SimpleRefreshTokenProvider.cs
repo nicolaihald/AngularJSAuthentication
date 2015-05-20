@@ -88,7 +88,7 @@ namespace AngularJSAuthentication.API.Providers
                         if (user != null)
                         {
                             var userClaims = identity.Claims.ToList();
-                            for (int i = 0; i < userClaims.Count-1; i++)
+                            for (int i = 0; i < userClaims.Count; i++)
                             {
                                 identity.RemoveClaim(userClaims[i]);
                             }
