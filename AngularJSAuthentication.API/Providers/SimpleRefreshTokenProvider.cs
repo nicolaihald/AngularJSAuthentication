@@ -94,7 +94,7 @@ namespace AngularJSAuthentication.API.Providers
                             }
                             // refresh claims 
                             identity.AddClaims(user.Claims.ToClaimsList(identity));
-                            identity.AddClaim(new Claim("USER_TIMESTAMP", DateTimeOffset.UtcNow.ToString()));
+                            identity.AddClaim(new Claim("REFRESH_TOKEN_TIMESTAMP", DateTimeOffset.UtcNow.ToString()));
                         }
                     }
 

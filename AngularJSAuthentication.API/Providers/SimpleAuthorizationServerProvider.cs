@@ -139,14 +139,6 @@ namespace AngularJSAuthentication.API.Providers
 
             // Change auth ticket for refresh token requests
             var newIdentity = new ClaimsIdentity(context.Ticket.Identity);
-
-            var newClaim = newIdentity.Claims.Where(c => c.Type == "newClaim").FirstOrDefault();
-            if (newClaim != null)
-            {
-                newIdentity.RemoveClaim(newClaim);
-            }
-            newIdentity.AddClaim(new Claim("newClaim", "newValue"));
-
             var newTicket = new AuthenticationTicket(newIdentity, context.Ticket.Properties);
             context.Validated(newTicket);
 
@@ -184,17 +176,22 @@ namespace AngularJSAuthentication.API.Providers
                 if (string.IsNullOrWhiteSpace(externalAccessToken))
                 {
                     context.SetError("invalid_external_accesstoken", "The external access token is invalid.");
+                    return;
                 }
 
                 if (string.IsNullOrWhiteSpace(provider))
                 {
                     context.SetError("invalid_external_provider", "The external provider is invalid.");
+                    return;
+
                 }
 
                 var verifiedAccessToken = await ExternalAccessTokenVerifier.VerifyToken(provider, externalAccessToken);
                 if (verifiedAccessToken == null)
                 {
                     context.SetError("invalid_external_accesstoken", "The external access token could not be verified!");
+                    return;
+
                 }
                 else
                 {

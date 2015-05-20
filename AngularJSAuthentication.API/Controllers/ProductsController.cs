@@ -8,16 +8,19 @@ using System.Web.Http;
 
 namespace AngularJSAuthentication.API.Controllers
 {
+   
+
     [RoutePrefix("api/products")]
     public class ProductsController : ApiController
     {
+
         private const bool AddAllClaimsAsProducts = true;
 
         [Authorize]
         [Route("")]
         public IHttpActionResult Get()
         {
-            var productsClaim = ClaimsPrincipal.Current.Claims.FirstOrDefault(c => c.Type == "urn:gyldendal:products");
+            var productsClaim = ClaimsPrincipal.Current.Claims.FirstOrDefault(c => c.Type == CustomClaimTypes.UrnGyldendalProducts);
             var products = Product.CreateProducts(productsClaim);
 
             if (AddAllClaimsAsProducts)
@@ -55,19 +58,25 @@ namespace AngularJSAuthentication.API.Controllers
 
             return list;
 
-        } 
+        }
     }
 
     public static class ProductListExtensions
     {
         public static void AddFromClaimsPricipal(this IList<Product> products, ClaimsPrincipal claimsPrincipal)
         {
-            if (claimsPrincipal != null) 
-                claimsPrincipal.Claims.ToList().ForEach(x => products.Add(new Product { Isbn = string.Format("{0}:{1}", x.Type, x.Value) }));
+            if (claimsPrincipal != null)
+                claimsPrincipal.Claims.Where(x => x.Type != CustomClaimTypes.UrnGyldendalProducts).ToList().ForEach(x => products.Add(new Product { Isbn = string.Format("{0}:{1}", x.Type, x.Value) }));
         }
     }
 
     #endregion
+
+    public static class CustomClaimTypes
+    {
+        public static string UrnGyldendalProducts = "urn:gyldendal:products";
+    }
+
 }
 
 

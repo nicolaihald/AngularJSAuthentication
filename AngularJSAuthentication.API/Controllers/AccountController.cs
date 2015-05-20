@@ -1,4 +1,14 @@
-﻿using System.Text;
+﻿using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Net.Http;
+using System.Runtime.Serialization.Formatters.Binary;
+using System.Security.Claims;
+using System.Security.Cryptography;
+using System.Text;
+using System.Threading.Tasks;
+using System.Web.Http;
 using AngularJSAuthentication.API.Models;
 using AngularJSAuthentication.API.Results;
 using Microsoft.AspNet.Identity;
@@ -7,27 +17,13 @@ using Microsoft.AspNet.Identity.Owin;
 using Microsoft.Owin.Security;
 using Microsoft.Owin.Security.OAuth;
 using Newtonsoft.Json.Linq;
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Net;
-using System.Net.Http;
-using System.Runtime.Serialization.Formatters.Binary;
-using System.Security.Claims;
-using System.Security.Cryptography;
-using System.Threading.Tasks;
-using System.Web;
-using System.Web.Http;
-using Microsoft.Owin.Security.DataHandler;
-using Microsoft.Owin.Security.DataProtection;
 
 namespace AngularJSAuthentication.API.Controllers
 {
     [RoutePrefix("api/Account")]
     public class AccountController : ApiController
     {
-        private AuthRepository _repo = null;
+        private readonly AuthRepository _repo = null;
 
         private IAuthenticationManager Authentication
         {

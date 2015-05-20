@@ -1,25 +1,26 @@
-﻿using System.Security.Claims;
+﻿using System;
+using System.Data.Entity;
+using System.Security.Claims;
 using System.Threading.Tasks;
+using System.Web.Http;
+using AngularJSAuthentication.API;
+using AngularJSAuthentication.API.Migrations;
 using AngularJSAuthentication.API.Providers;
 using AngularJSAuthentication.EkeyAuth;
 using AngularJSAuthentication.EkeyAuth.Provider;
-using AngularJSAuthentication.UniLoginAuth;
+using Microsoft.AspNet.Identity;
 using Microsoft.Owin;
+using Microsoft.Owin.Cors;
 using Microsoft.Owin.Security;
+using Microsoft.Owin.Security.DataHandler;
+using Microsoft.Owin.Security.DataProtection;
 using Microsoft.Owin.Security.Facebook;
 using Microsoft.Owin.Security.Google;
 using Microsoft.Owin.Security.Infrastructure;
 using Microsoft.Owin.Security.OAuth;
 using Owin;
-using System;
-using System.Data.Entity;
-using System.IO;
-using System.Runtime.Serialization.Formatters.Binary;
-using System.Web.Http;
-using Microsoft.Owin.Security.DataHandler;
-using Microsoft.Owin.Security.DataProtection;
 
-[assembly: OwinStartup(typeof(AngularJSAuthentication.API.Startup))]
+[assembly: OwinStartup(typeof(Startup))]
 namespace AngularJSAuthentication.API
 {
     public class Startup
@@ -44,7 +45,7 @@ namespace AngularJSAuthentication.API
             WebApiConfig.Register(config);
             app.UseWebApi(config);
 
-            Database.SetInitializer(new MigrateDatabaseToLatestVersion<AuthContext, AngularJSAuthentication.API.Migrations.Configuration>());
+            Database.SetInitializer(new MigrateDatabaseToLatestVersion<AuthContext, Configuration>());
 
         }
 
@@ -89,10 +90,10 @@ namespace AngularJSAuthentication.API
 
             #endregion
 
-            app.UseCors(Microsoft.Owin.Cors.CorsOptions.AllowAll);
+            app.UseCors(CorsOptions.AllowAll);
 
             //use a cookie to temporarily store information about a user logging in with a third party login provider
-            app.UseExternalSignInCookie(Microsoft.AspNet.Identity.DefaultAuthenticationTypes.ExternalCookie);
+            app.UseExternalSignInCookie(DefaultAuthenticationTypes.ExternalCookie);
 
             // Local Token Generation
             app.UseOAuthBearerAuthentication(OAuthBearerOptions);
@@ -107,7 +108,8 @@ namespace AngularJSAuthentication.API
             {
                 ClientId = "659454074090-vhh7va2nd2p9ffhahs5jq72tg7k4b277.apps.googleusercontent.com",
                 ClientSecret = "Xgr-lpBU8W_r7PBEE-zqNJT1",
-                Provider = new GoogleAuthProvider()
+                Provider = new GoogleAuthProvider(),
+               
             };
             app.UseGoogleAuthentication(GoogleAuthOptions);
             
@@ -137,7 +139,7 @@ namespace AngularJSAuthentication.API
                 ConnectorApiKey = "150EA85C-1005-400A-A0AF-C5B6062B7A9D",  // LOGINCONNECTORAPIKEY (LoginConnector API-key)
                 AppId           = "Ordbog",                                // Client Website Name
                 AppSecret       = "ordbog20-97dd07d",                      // Client UniConn SecretKey,
-                Provider = new EkeyAuthenticationProvider
+                Provider = new EkeyAuthProvider
                 {
                     OnAuthenticated = (context) =>
                     {
@@ -151,7 +153,9 @@ namespace AngularJSAuthentication.API
                         // Subsequently adding a claim here will also send this claim
                         // as part of the cookie set on the browser so you can retrieve
                         // on every successive request. 
-                        context.Identity.AddClaim(new Claim("ExternalAccessToken", context.AccessToken));
+
+                        // NOTE: The ExternalAccessToken is typically added to the context within the providers "Authenticated"-method: 
+                        //context.Identity.AddClaim(new Claim("ExternalAccessToken", context.AccessToken));
 
                         return Task.FromResult(0);
                     }

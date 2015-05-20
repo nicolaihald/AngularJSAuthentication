@@ -49,14 +49,16 @@ namespace AngularJSAuthentication.API
                 var text = await loggedInfoResponse.Content.ReadAsStringAsync();
 
                 JObject user = JObject.Parse(text);
-                JToken userInfo = user["UserLoggedInInfo"][0];
+                JToken userInfo = user["UserLoggedInInfo"].First;
 
                 if (userInfo != null)
                 {
-                    var notValidatedToken = new ParsedExternalAccessToken();
+                    var notValidatedToken = new ParsedExternalAccessToken
+                    {
+                        user_id = userInfo.Value<string>("UserIdentifier"),
+                        app_id = Startup.EkeyAuthOptions.AppId
+                    };
 
-                    notValidatedToken.user_id = userInfo.Value<string>("UserIdentifier");
-                    notValidatedToken.app_id = Startup.EkeyAuthOptions.AppId;
 
                     return notValidatedToken;
                 }
