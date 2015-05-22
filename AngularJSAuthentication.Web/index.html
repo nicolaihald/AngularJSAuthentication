@@ -33,7 +33,15 @@
                 <li data-ng-hide="authentication.isAuth"> <a href="#/login">Login</a></li>
                 <li data-ng-hide="authentication.isAuth"> <a href="#/signup">Sign Up</a></li>
             </ul>
+            <div class="user-panel pull-right" ng-if="showImage(authentication.picture)">
+                <div class="image">
+                    <img ng-src="{{authentication.picture}}" class="img-circle" alt="User Image">
+                </div>
+            </div>
         </div>
+       
+
+
     </div>
 </div>
 

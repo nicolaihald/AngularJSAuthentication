@@ -18,7 +18,7 @@ namespace AngularJSAuthentication.API.Providers
             context.Identity.AddClaim(new Claim(ClaimTypes.Gender, gender));
 
             var picture = userDetail.Value<string>("picture");
-            context.Identity.AddClaim(new Claim("urn:google:picture", picture));
+            context.Identity.AddClaim(new Claim("picture", picture));
 
             context.Identity.AddClaim(new Claim("ExternalAccessToken", context.AccessToken));
             return Task.FromResult<object>(null);

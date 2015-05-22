@@ -6,6 +6,10 @@ app.controller('indexController', ['$scope', '$location', 'authService', functio
         $location.path('/home');
     }
 
+    $scope.showImage = function(imageUrl) {
+        return imageUrl != null && imageUrl.length > 0;
+    }
+
     $scope.authentication = authService.authentication;
 
 }]);

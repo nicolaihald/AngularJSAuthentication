@@ -63,3 +63,13 @@ td.ng-binding {
     min-width: 160px;
     max-width: 160px;
 }
+
+.user-panel {
+  margin: 5px 0;
+}
+
+.img-circle {
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+}

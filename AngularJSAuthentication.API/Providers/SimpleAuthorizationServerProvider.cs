@@ -97,6 +97,7 @@ namespace AngularJSAuthentication.API.Providers
 
             using (AuthRepository repo = new AuthRepository())
             {
+
                 IdentityUser user = await repo.FindUser(context.UserName, context.Password);
 
                 if (user == null)
@@ -210,9 +211,9 @@ namespace AngularJSAuthentication.API.Providers
                     }
 
 
-                    identity.AddClaim(new Claim("urn:app:username", user.UserName ?? verifiedAccessToken.user_id));                    
-                    identity.AddClaim(new Claim("urn:app:loginprovider", provider));                    
-                    identity.AddClaim(new Claim("urn:app:loginproviderkey", verifiedAccessToken.user_id));                    
+                    identity.AddClaim(new Claim("urn:app:username", user.UserName ?? verifiedAccessToken.user_id));
+                    identity.AddClaim(new Claim("urn:app:loginprovider", provider));
+                    identity.AddClaim(new Claim("urn:app:loginproviderkey", verifiedAccessToken.user_id));
                     //identity.AddClaim(new Claim(ClaimTypes.Name, verifiedAccessToken.user_id));
                     //identity.AddClaim(new Claim(ClaimTypes.Role, "user"));
                     //identity.AddClaim(new Claim("sub", verifiedAccessToken.user_id));
@@ -222,6 +223,7 @@ namespace AngularJSAuthentication.API.Providers
                         identity.AddClaim(new Claim(claim.ClaimType, claim.ClaimValue));
                     }
 
+                    var pictureClaim = user.Claims.FirstOrDefault(x => x.ClaimType == "picture");
 
                     var props = new AuthenticationProperties(new Dictionary<string, string>
                     {
@@ -239,7 +241,9 @@ namespace AngularJSAuthentication.API.Providers
                         {
                             "LoginProviderKey", verifiedAccessToken.user_id
                         },
-
+                        {
+                            "picture", pictureClaim != null ? pictureClaim.ClaimValue : ""
+                        },
                     });
 
                     var ticket = new AuthenticationTicket(identity, props);
@@ -262,7 +266,7 @@ namespace AngularJSAuthentication.API.Providers
 
             const string allowOriginHeaderKey = "Access-Control-Allow-Origin";
             if (!context.Response.Headers.ContainsKey(allowOriginHeaderKey))
-                context.Response.Headers.Add(allowOriginHeaderKey, new[] {allowedOrigin});
+                context.Response.Headers.Add(allowOriginHeaderKey, new[] { allowedOrigin });
         }
     }
 }

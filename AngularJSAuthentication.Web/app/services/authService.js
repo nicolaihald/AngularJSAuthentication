@@ -7,7 +7,8 @@ app.factory('authService', ['$http', '$q', 'localStorageService', 'ngAuthSetting
     var _authentication = {
         isAuth: false,
         userName: "",
-        useRefreshTokens: false
+        useRefreshTokens: false,
+        picture: "" //"https://lh3.googleusercontent.com/-4pULvBQTrhU/AAAAAAAAAAI/AAAAAAAAAAA/rZbTIXHck1g/photo.jpg"
     };
 
     var _externalAuthData = {
@@ -47,6 +48,7 @@ app.factory('authService', ['$http', '$q', 'localStorageService', 'ngAuthSetting
             _authentication.isAuth = true;
             _authentication.userName = loginData.userName;
             _authentication.useRefreshTokens = loginData.useRefreshTokens;
+            _authentication.picture = loginData.userName;
 
             deferred.resolve(response);
 
@@ -64,6 +66,8 @@ app.factory('authService', ['$http', '$q', 'localStorageService', 'ngAuthSetting
         _authentication.isAuth = false;
         _authentication.userName = "";
         _authentication.useRefreshTokens = false;
+        _authentication.picture = "";
+
     };
 
     //var _logOut = function () {
@@ -84,6 +88,7 @@ app.factory('authService', ['$http', '$q', 'localStorageService', 'ngAuthSetting
             _authentication.isAuth = true;
             _authentication.userName = authData.userName;
             _authentication.useRefreshTokens = authData.useRefreshTokens;
+            _authentication.picture = authData.picture;
         }
 
     };
@@ -94,13 +99,15 @@ app.factory('authService', ['$http', '$q', 'localStorageService', 'ngAuthSetting
             _authentication.isAuth = true;
             _authentication.userName = authData.userName;
             _authentication.useRefreshTokens = authData.useRefreshTokens;
+            _authentication.picture = authData.picture;
         }
 
         localStorageService.set('authorizationData', {
             token: authData.access_token,
             userName: authData.userName,
             refreshToken: "",
-            useRefreshTokens: false
+            useRefreshTokens: false,
+            picture: authData.picture
         });
 
     };
@@ -177,11 +184,12 @@ app.factory('authService', ['$http', '$q', 'localStorageService', 'ngAuthSetting
         $http.post(serviceBase + 'token', data, { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } })
             .success(function (response) {
 
-                localStorageService.set('authorizationData', { token: response.access_token, userName: response.userName, refreshToken: response.refresh_token, useRefreshTokens: true });
+                localStorageService.set('authorizationData', { token: response.access_token, userName: response.userName, refreshToken: response.refresh_token, useRefreshTokens: true, picture: response.picture });
 
                 _authentication.isAuth          = true;
                 _authentication.userName = response.userName;
                 _authentication.useRefreshTokens = true;
+                _authentication.picture = response.picture;
 
                 deferred.resolve(response);
             })
