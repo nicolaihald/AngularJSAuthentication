@@ -48,7 +48,7 @@ app.factory('authService', ['$http', '$q', 'localStorageService', 'ngAuthSetting
             _authentication.isAuth = true;
             _authentication.userName = loginData.userName;
             _authentication.useRefreshTokens = loginData.useRefreshTokens;
-            _authentication.picture = loginData.userName;
+            _authentication.picture = loginData.picture;
 
             deferred.resolve(response);
 

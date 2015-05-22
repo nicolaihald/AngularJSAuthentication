@@ -83,8 +83,8 @@ namespace AngularJSAuthentication.API.Providers
                 return Task.FromResult<object>(null);
             }
 
-            context.OwinContext.Set<string>("as:clientAllowedOrigin", client.AllowedOrigin);
-            context.OwinContext.Set<string>("as:clientRefreshTokenLifeTime", client.RefreshTokenLifeTime.ToString());
+            context.OwinContext.Set<string>(AuthConstants.ClientAllowedOriginKey, client.AllowedOrigin);
+            context.OwinContext.Set<string>(AuthConstants.ClientRefreshTokenLifeTimeKey, client.RefreshTokenLifeTime.ToString());
 
             context.Validated();
             return Task.FromResult<object>(null);
@@ -114,7 +114,7 @@ namespace AngularJSAuthentication.API.Providers
             var props = new AuthenticationProperties(new Dictionary<string, string>
                 {
                     {
-                        "as:client_id", (context.ClientId == null) ? string.Empty : context.ClientId
+                        AuthConstants.ClientIdKey, (context.ClientId == null) ? string.Empty : context.ClientId
                     },
                     {
                         "userName", context.UserName
@@ -128,7 +128,7 @@ namespace AngularJSAuthentication.API.Providers
 
         public override Task GrantRefreshToken(OAuthGrantRefreshTokenContext context)
         {
-            var originalClient = context.Ticket.Properties.Dictionary["as:client_id"];
+            var originalClient = context.Ticket.Properties.Dictionary[AuthConstants.ClientIdKey];
             var currentClient = context.ClientId;
 
             if (originalClient != currentClient)
@@ -227,7 +227,7 @@ namespace AngularJSAuthentication.API.Providers
                     var props = new AuthenticationProperties(new Dictionary<string, string>
                     {
                         {
-                            "as:client_id", context.ClientId ?? string.Empty
+                            AuthConstants.ClientIdKey, context.ClientId ?? string.Empty
                         },
                         {
                             "userName", user.UserName// verifiedAccessToken.user_id
@@ -261,11 +261,10 @@ namespace AngularJSAuthentication.API.Providers
 
         private static void SetAccessControlAllowOriginHeader(IOwinContext context)
         {
-            var allowedOrigin = context.Get<string>("as:clientAllowedOrigin") ?? "*";
+            var allowedOrigin = context.Get<string>(AuthConstants.ClientAllowedOriginKey) ?? "*";
 
-            const string allowOriginHeaderKey = "Access-Control-Allow-Origin";
-            if (!context.Response.Headers.ContainsKey(allowOriginHeaderKey))
-                context.Response.Headers.Add(allowOriginHeaderKey, new[] { allowedOrigin });
+            if (!context.Response.Headers.ContainsKey(AuthConstants.AccessControlAllowOriginKey))
+                context.Response.Headers.Add(AuthConstants.AccessControlAllowOriginKey, new[] { allowedOrigin });
         }
     }
 }

@@ -15,7 +15,7 @@ namespace AngularJSAuthentication.API.Providers
 
         public async Task CreateAsync(AuthenticationTokenCreateContext context)
         {
-            var clientid = context.Ticket.Properties.Dictionary["as:client_id"];
+            var clientid = context.Ticket.Properties.Dictionary[AuthConstants.ClientIdKey];
 
             if (string.IsNullOrEmpty(clientid))
             {
@@ -26,20 +26,20 @@ namespace AngularJSAuthentication.API.Providers
 
             using (var repo = new AuthRepository())
             {
-                var refreshTokenLifeTime = context.OwinContext.Get<string>("as:clientRefreshTokenLifeTime"); 
-               
-                var token = new RefreshToken() 
-                { 
+                var refreshTokenLifeTime = context.OwinContext.Get<string>(AuthConstants.ClientRefreshTokenLifeTimeKey);
+
+                var token = new RefreshToken()
+                {
                     Id = Helper.GetHash(refreshTokenId),
-                    ClientId = clientid, 
+                    ClientId = clientid,
                     Subject = context.Ticket.Identity.Name,
                     IssuedUtc = DateTime.UtcNow,
-                    ExpiresUtc = DateTime.UtcNow.AddMinutes(Convert.ToDouble(refreshTokenLifeTime)) 
+                    ExpiresUtc = DateTime.UtcNow.AddMinutes(Convert.ToDouble(refreshTokenLifeTime))
                 };
 
                 context.Ticket.Properties.IssuedUtc = token.IssuedUtc;
                 context.Ticket.Properties.ExpiresUtc = token.ExpiresUtc;
-                
+
                 token.ProtectedTicket = context.SerializeTicket();
 
                 var result = await repo.AddRefreshToken(token);
@@ -48,7 +48,7 @@ namespace AngularJSAuthentication.API.Providers
                 {
                     context.SetToken(refreshTokenId);
                 }
-             
+
             }
         }
 
@@ -62,12 +62,18 @@ namespace AngularJSAuthentication.API.Providers
             {
                 var refreshToken = await repo.FindRefreshToken(hashedTokenId);
 
-                if (refreshToken != null )
+                if (refreshToken != null)
                 {
+                    if (refreshToken.ExpiresUtc < DateTime.UtcNow)
+                    {
+                        return;
+                    }
+
                     //Get protectedTicket from refreshToken class
                     context.DeserializeTicket(refreshToken.ProtectedTicket);
 
                     #region --- RELOAD USER AND REFRESH CLAIMS: ---
+
                     // In order to be able to reload/refresh the user, we obviously need to be able to identify the user in our underlying identity provider datastore.
                     // We're achieving this by storing this info ("LoginProvider" and "LoginProviderKey") in the AuthenticationProperties of the ticket during the authentication process.
                     // The values are added SimpleAuthorizationServerProvider.GrantCustomExtension. 
@@ -97,9 +103,12 @@ namespace AngularJSAuthentication.API.Providers
 
                     newTicket = new AuthenticationTicket(identity, context.Ticket.Properties);
                     context.SetTicket(newTicket);
+
                     #endregion
 
                     var result = await repo.RemoveRefreshToken(hashedTokenId);
+
+
                 }
             }
         }
@@ -117,11 +126,10 @@ namespace AngularJSAuthentication.API.Providers
 
         private static void SetAccessControlAllowOriginHeader(IOwinContext context)
         {
-            var allowedOrigin = context.Get<string>("as:clientAllowedOrigin") ?? "*";
+            var allowedOrigin = context.Get<string>(AuthConstants.ClientAllowedOriginKey) ?? "*";
 
-            const string allowOriginHeaderKey = "Access-Control-Allow-Origin";
-            if (!context.Response.Headers.ContainsKey(allowOriginHeaderKey))
-                context.Response.Headers.Add(allowOriginHeaderKey, new[] { allowedOrigin });
+            if (!context.Response.Headers.ContainsKey(AuthConstants.AccessControlAllowOriginKey))
+                context.Response.Headers.Add(AuthConstants.AccessControlAllowOriginKey, new[] { allowedOrigin });
         }
     }
 }
