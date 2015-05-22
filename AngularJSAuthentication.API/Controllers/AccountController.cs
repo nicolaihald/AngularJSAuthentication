@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
@@ -30,19 +31,6 @@ namespace AngularJSAuthentication.API.Controllers
             get { return Request.GetOwinContext().Authentication; }
         }
 
-        private byte[] ObjectToByteArray(Object obj)
-        {
-            if (obj == null)
-                return null;
-            BinaryFormatter bf = new BinaryFormatter();
-            using (MemoryStream ms = new MemoryStream())
-            {
-                bf.Serialize(ms, obj);
-                return ms.ToArray();
-            }
-        }
-
-
         public AccountController()
         {
             _repo = new AuthRepository();
@@ -71,8 +59,6 @@ namespace AngularJSAuthentication.API.Controllers
         }
 
         // GET api/Account/ExternalLogin
-
-
         /// <summary>
         /// 
         /// </summary>
@@ -152,11 +138,10 @@ namespace AngularJSAuthentication.API.Controllers
             bool hasRegistered = user != null;
 
 
-            var state = "Nicolai";
-            var stateProtected = "";
 
             var identity = User.Identity as ClaimsIdentity;
             var claimsToAdd = loginInfo.ExternalIdentity.Claims.ToList();
+            var state = "";
 
             if (hasRegistered)
             {
@@ -183,25 +168,22 @@ namespace AngularJSAuthentication.API.Controllers
             {
 
                 // VERSION #1
-                // In order to preserve external claims (state) during the login registration process, we're wrapping any external claims in a "protected" AuthenticationTicket, which then
-                // gets passed back to the client. 
+                // If the user hasn't got a local account already, we can't persist the external claims quite yet. 
+                // So, in order to preserve this external "state" during the login registration process, we're wrapping the external claims in a "protected" AuthenticationTicket.
+                // This ticket is then passed back to client using an additional url-parameter. 
 
                 ClaimsIdentity tempIdentity = new ClaimsIdentity(claimsToAdd, "TEMP");
                 AuthenticationTicket tempTicket = new AuthenticationTicket(tempIdentity, new AuthenticationProperties());
 
                 try
                 {
-                    stateProtected = Startup.TicketDataProtector.Protect(tempTicket);
+                    state = Startup.TicketDataProtector.Protect(tempTicket);
                 }
                 catch (Exception ex)
                 {
                     throw;
                 }
-
-                //state = string.Join(";", claimsToAdd.Select(x => string.Format("{0},{1}", x.Type, x.Value)).ToList());
-                //stateProtected = state.Protect();
             }
-
 
             //var localAccessToken = await GenerateLocalAccessTokenResponse2(externalLogin);
 
@@ -211,22 +193,7 @@ namespace AngularJSAuthentication.API.Controllers
                                            externalLogin.LoginProvider,
                                            hasRegistered.ToString(),
                                            externalLogin.UserName,
-                                           stateProtected);
-
-            //redirectUri = string.Format("{0}#external_access_token={1}&provider={2}&haslocalaccount={3}&external_user_name={4}&access_token={5}",
-            //                                redirectUri,
-            //                                externalLogin.ExternalAccessToken,
-            //                                externalLogin.LoginProvider,
-            //                                hasRegistered.ToString(),
-            //                                externalLogin.UserName,
-            //                                localAccessToken);
-
-            //redirectUri = string.Format("{0}#external_access_token={1}&provider={2}&haslocalaccount={3}&external_user_name={4}",
-            //                                redirectUri,
-            //                                externalLogin.ExternalAccessToken,
-            //                                externalLogin.LoginProvider,
-            //                                hasRegistered.ToString(),
-            //                                externalLogin.UserName);
+                                           state);
 
             return Redirect(redirectUri);
 
@@ -279,7 +246,6 @@ namespace AngularJSAuthentication.API.Controllers
             }
 
 
-            string state = null;
             AuthenticationTicket temporaryTicket;
             try
             {
@@ -292,59 +258,25 @@ namespace AngularJSAuthentication.API.Controllers
                 // - the data was encrypted by another user (for scope == CurrentUser)
                 // - the data was encrypted on another machine (for scope == LocalMachine)
                 // In this case, the stored password is not usable; just prompt the user to enter it again.
-                return BadRequest("State was invalid!");
+                return BadRequest("State was invalid");
 
             }
 
-
+            // if the user passed any external state (wrapped in a AuthenticationTicket), we need to 
+            // add the claims to the local user account:  
             if (temporaryTicket != null)
+            {
                 foreach (var freshClaim in temporaryTicket.Identity.Claims)
                 {
                     await _repo.AddClaimAsync(user.Id, freshClaim);
                 }
-
-
-            //generate access token response
-            var accessTokenResponse = GenerateLocalAccessTokenResponse(model.UserName + state);
-
-            return Ok(accessTokenResponse);
+            }
+            
+           
+            return Ok();
         }
 
-        [AllowAnonymous]
-        [HttpGet]
-        [Route("ObtainLocalAccessToken")]
-        public async Task<IHttpActionResult> ObtainLocalAccessToken(string provider, string externalAccessToken)
-        {
-
-            if (string.IsNullOrWhiteSpace(provider) || string.IsNullOrWhiteSpace(externalAccessToken))
-            {
-                return BadRequest("Provider or external access token is not sent");
-            }
-
-            var verifiedAccessToken = await ExternalAccessTokenVerifier.VerifyToken(provider, externalAccessToken);
-            if (verifiedAccessToken == null)
-            {
-                return BadRequest("Invalid Provider or External Access Token");
-            }
-
-            IdentityUser user = await _repo.FindAsync(new UserLoginInfo(provider, verifiedAccessToken.user_id));
-
-            ExternalLoginInfo externalLoginInfo = await Authentication.GetExternalLoginInfoAsync();
-
-            bool hasRegistered = user != null;
-
-            if (!hasRegistered)
-            {
-                return BadRequest("External user is not registered");
-            }
-
-            //generate access token response
-            var accessTokenResponse = GenerateLocalAccessTokenResponse(user.UserName, externalLoginInfo);
-
-            return Ok(accessTokenResponse);
-
-        }
-
+        
         protected override void Dispose(bool disposing)
         {
             if (disposing)
@@ -444,202 +376,7 @@ namespace AngularJSAuthentication.API.Controllers
             return match.Value;
         }
 
-        //private async Task<ParsedExternalAccessToken> VerifyExternalAccessToken(string provider, string accessToken)
-        //{
-        //    ParsedExternalAccessToken parsedToken = null;
-        //    var client = new HttpClient();
-
-        //    var verifyTokenEndPoint = "";
-
-        //    if (provider == "Facebook")
-        //    {
-        //        //You can get it from here: https://developers.facebook.com/tools/accesstoken/
-        //        //More about debug_tokn here: http://stackoverflow.com/questions/16641083/how-does-one-get-the-app-access-token-for-debug-token-inspection-on-facebook
-        //        var appToken = "xxxxxx";
-        //        verifyTokenEndPoint = string.Format("https://graph.facebook.com/debug_token?input_token={0}&access_token={1}", accessToken, appToken);
-        //    }
-        //    else if (provider == "Google")
-        //    {
-        //        verifyTokenEndPoint = string.Format("https://www.googleapis.com/oauth2/v1/tokeninfo?access_token={0}", accessToken);
-        //    }
-        //    else if (provider == "Ekey")
-        //    {
-        //        verifyTokenEndPoint =
-        //            string.Format("https://test-loginconnector.gyldendal.dk/api/LoggedInfo/GetAuthInfo"); //"?access_token={0}", accessToken);
-
-        //        // TEMP HACK:
-        //        var requestData = (dynamic)new JObject();
-        //        requestData.subscriptionAuthentToken = accessToken;
-        //        requestData.clientWebShopName        = Startup.EkeyAuthOptions.AppId;
-        //        requestData.SharedSecret             = Startup.EkeyAuthOptions.AppSecret;
-
-        //        var loggedInfoRequest = new HttpRequestMessage(HttpMethod.Post, verifyTokenEndPoint);
-        //        loggedInfoRequest.Content = new StringContent(requestData.ToString(), Encoding.UTF8, "application/json");
-
-        //        loggedInfoRequest.Headers.Add("User-Agent", "OWIN Ekey OAuth Provider");
-        //        loggedInfoRequest.Headers.Add("LOGINCONNECTORAPIKEY", Startup.EkeyAuthOptions.ConnectorApiKey);
-
-        //        HttpResponseMessage loggedInfoResponse = await client.SendAsync(loggedInfoRequest);
-        //        loggedInfoResponse.EnsureSuccessStatusCode();
-        //        var text = await loggedInfoResponse.Content.ReadAsStringAsync();
-
-        //        JObject user = JObject.Parse(text);
-        //        JToken userInfo = user["UserLoggedInInfo"][0];
-
-        //        if (userInfo != null)
-        //        {
-        //            var notValidatedToken = new ParsedExternalAccessToken();
-
-        //            notValidatedToken.user_id = userInfo.Value<string>("UserIdentifier");
-        //            notValidatedToken.app_id = Startup.EkeyAuthOptions.AppId;
-
-        //            return notValidatedToken;
-        //        }
-        //    }
-        //    else
-        //    {
-        //        return null;
-        //    }
-
-
-        //    var uri = new Uri(verifyTokenEndPoint);
-        //    var response = await client.GetAsync(uri);
-
-        //    if (response.IsSuccessStatusCode)
-        //    {
-        //        var content = await response.Content.ReadAsStringAsync();
-
-        //        dynamic jObj = (JObject)Newtonsoft.Json.JsonConvert.DeserializeObject(content);
-
-        //        parsedToken = new ParsedExternalAccessToken();
-
-        //        if (provider == "Facebook")
-        //        {
-        //            parsedToken.user_id = jObj["data"]["user_id"];
-        //            parsedToken.app_id = jObj["data"]["app_id"];
-
-        //            if (!string.Equals(Startup.FacebookAuthOptions.AppId, parsedToken.app_id, StringComparison.OrdinalIgnoreCase))
-        //            {
-        //                return null;
-        //            }
-        //        }
-        //        else if (provider == "Google")
-        //        {
-        //            parsedToken.user_id = jObj["user_id"];
-        //            parsedToken.app_id = jObj["audience"];
-
-        //            if (!string.Equals(Startup.GoogleAuthOptions.ClientId, parsedToken.app_id, StringComparison.OrdinalIgnoreCase))
-        //            {
-        //                return null;
-        //            }
-
-        //        }
-
-        //        if (provider == "Ekey")
-        //        {
-        //            parsedToken.user_id = jObj["UserLoggedInInfo"]["UserIdentifier"];
-        //            parsedToken.app_id = jObj["UserLoggedInInfo"]["LoginProvider"];
-        //            //parsedToken.app_id = jObj["UserLoggedInInfo"]["app_id"];
-
-        //            if (!string.Equals(Startup.FacebookAuthOptions.AppId, parsedToken.app_id, StringComparison.OrdinalIgnoreCase))
-        //            {
-        //                return null;
-        //            }
-        //        }
-
-        //    }
-
-        //    return parsedToken;
-        //}
-
-        private JObject GenerateLocalAccessTokenResponse(string userName, ExternalLoginInfo externalLoginInfo = null)
-        {
-
-            var tokenExpiration = TimeSpan.FromDays(1);
-
-            ClaimsIdentity identity = new ClaimsIdentity(OAuthDefaults.AuthenticationType);
-
-            identity.AddClaim(new Claim(ClaimTypes.Name, userName));
-            identity.AddClaim(new Claim("role", "user"));
-            identity.AddClaim(new Claim("TODO", "urn:ekey:products"));
-
-            if (externalLoginInfo != null)
-            {
-                var externalIdentity = (ClaimsIdentity)externalLoginInfo.ExternalIdentity;
-                var productsClaim = externalIdentity.FindFirst("urn:ekey:products");
-
-                if (productsClaim != null)
-                    identity.AddClaim(productsClaim);
-            }
-
-            var props = new AuthenticationProperties()
-            {
-                IssuedUtc = DateTime.UtcNow,
-                ExpiresUtc = DateTime.UtcNow.Add(tokenExpiration),
-            };
-
-            var ticket = new AuthenticationTicket(identity, props);
-            var accessToken = Startup.OAuthBearerOptions.AccessTokenFormat.Protect(ticket);
-
-            JObject tokenResponse = new JObject(
-                                        new JProperty("userName", userName),
-                                        new JProperty("access_token", accessToken),
-                                        new JProperty("token_type", "bearer"),
-                                        new JProperty("expires_in", tokenExpiration.TotalSeconds.ToString()),
-                                        new JProperty(".issued", ticket.Properties.IssuedUtc.ToString()),
-                                        new JProperty(".expires", ticket.Properties.ExpiresUtc.ToString())
-        );
-
-            return tokenResponse;
-        }
-
-        private async Task<string> GenerateLocalAccessTokenResponse2(ExternalLoginData externalLoginData)
-        {
-
-            var tokenExpiration = TimeSpan.FromDays(1);
-
-
-            ClaimsIdentity identity = new ClaimsIdentity(OAuthDefaults.AuthenticationType);
-
-            identity.AddClaim(new Claim(ClaimTypes.Name, externalLoginData.UserName));
-            identity.AddClaim(new Claim("role", "user"));
-
-            var claimsToInclude = externalLoginData.ExternalClaims.Where(x => x.Type.StartsWith("urn")).ToList();
-            identity.AddClaims(claimsToInclude);
-
-
-            // persist state during the login process, using claims: 
-            var loginInfo = await Authentication.GetExternalLoginInfoAsync();
-            if (loginInfo != null)
-            {
-                foreach (var externalClaim in loginInfo.ExternalIdentity.Claims)
-                {
-                    identity.AddClaim(new Claim("EXT_" + externalClaim.Type, externalClaim.Value));
-                }
-            }
-
-            var props = new AuthenticationProperties()
-            {
-                IssuedUtc = DateTime.UtcNow,
-                ExpiresUtc = DateTime.UtcNow.Add(tokenExpiration),
-            };
-
-            var ticket = new AuthenticationTicket(identity, props);
-            var accessToken = Startup.OAuthBearerOptions.AccessTokenFormat.Protect(ticket);
-
-            //    JObject tokenResponse = new JObject(
-            //                                new JProperty("userName", userName),
-            //                                new JProperty("access_token", accessToken),
-            //                                new JProperty("token_type", "bearer"),
-            //                                new JProperty("expires_in", tokenExpiration.TotalSeconds.ToString()),
-            //                                new JProperty(".issued", ticket.Properties.IssuedUtc.ToString()),
-            //                                new JProperty(".expires", ticket.Properties.ExpiresUtc.ToString())
-            //);
-
-            return accessToken;
-        }
-
-
+       
         private class ExternalLoginData
         {
             public string LoginProvider { get; set; }
@@ -680,42 +417,5 @@ namespace AngularJSAuthentication.API.Controllers
         }
 
         #endregion
-
-
-
-
-    }
-
-    public static class DataProtectionExtensions
-    {
-        public static string Protect(
-            this string clearText,
-            string optionalEntropy = null,
-            DataProtectionScope scope = DataProtectionScope.CurrentUser)
-        {
-            if (clearText == null)
-                throw new ArgumentNullException(nameof(clearText));
-            byte[] clearBytes = Encoding.UTF8.GetBytes(clearText);
-            byte[] entropyBytes = string.IsNullOrEmpty(optionalEntropy)
-                ? null
-                : Encoding.UTF8.GetBytes(optionalEntropy);
-            byte[] encryptedBytes = ProtectedData.Protect(clearBytes, entropyBytes, scope);
-            return Convert.ToBase64String(encryptedBytes);
-        }
-
-        public static string Unprotect(
-            this string encryptedText,
-            string optionalEntropy = null,
-            DataProtectionScope scope = DataProtectionScope.CurrentUser)
-        {
-            if (encryptedText == null)
-                throw new ArgumentNullException(nameof(encryptedText));
-            byte[] encryptedBytes = Convert.FromBase64String(encryptedText);
-            byte[] entropyBytes = string.IsNullOrEmpty(optionalEntropy)
-                ? null
-                : Encoding.UTF8.GetBytes(optionalEntropy);
-            byte[] clearBytes = ProtectedData.Unprotect(encryptedBytes, entropyBytes, scope);
-            return Encoding.UTF8.GetString(clearBytes);
-        }
     }
 }

@@ -71,9 +71,7 @@ app.factory('authService', ['$http', '$q', 'localStorageService', 'ngAuthSetting
     };
 
     //var _logOut = function () {
-
     //    return $http.post(serviceBase + 'api/account/signout').then(function (results) {
-
     //        localStorageService.remove('authorizationData');
     //        _authentication.isAuth = false;
     //        _authentication.userName = "";
@@ -141,32 +139,26 @@ app.factory('authService', ['$http', '$q', 'localStorageService', 'ngAuthSetting
         return deferred.promise;
     };
 
+    //var _obtainAccessToken = function (externalData) {
+    //    var deferred = $q.defer();
+    //    $http.get(serviceBase + 'api/account/ObtainLocalAccessToken', { params: { provider: externalData.provider, externalAccessToken: externalData.externalAccessToken } })
+    //        .success(function (response) {
+    //        localStorageService.set('authorizationData', { token: response.access_token, userName: response.userName, refreshToken: "", useRefreshTokens: false });
+    //        _authentication.isAuth = true;
+    //        _authentication.userName = response.userName;
+    //        _authentication.useRefreshTokens = false;
+    //        deferred.resolve(response);
+    //    }).error(function (err, status) {
+    //        _logOut();
+    //        deferred.reject(err);
+    //    });
+    //    return deferred.promise;
+    //};
+
+    // obtain a local access-token using our "custom-grant extension" implementation. Passes the external access-token to the SimpleAuthorizationServerProvider
+    // which is then responsible for validating it and issuing a local token. This way tokens are ONLY issued by the OAuthAuthorizationServerProvider - opposed 
+    // to the previous implementation, where the AccountController was responsible for this as well (when logging in using an external provider). 
     var _obtainAccessToken = function (externalData) {
-
-        var deferred = $q.defer();
-
-        $http.get(serviceBase + 'api/account/ObtainLocalAccessToken', { params: { provider: externalData.provider, externalAccessToken: externalData.externalAccessToken } })
-            .success(function (response) {
-
-            localStorageService.set('authorizationData', { token: response.access_token, userName: response.userName, refreshToken: "", useRefreshTokens: false });
-
-            _authentication.isAuth = true;
-            _authentication.userName = response.userName;
-            _authentication.useRefreshTokens = false;
-
-            deferred.resolve(response);
-
-        }).error(function (err, status) {
-            _logOut();
-            deferred.reject(err);
-        });
-
-        return deferred.promise;
-
-    };
-
-
-    var _obtainAccessTokenUsingCustomGrant = function (externalData) {
 
         var deferred = $q.defer();
         //var data = {
@@ -202,18 +194,29 @@ app.factory('authService', ['$http', '$q', 'localStorageService', 'ngAuthSetting
 
     };
 
+    //var _registerExternal = function (registerExternalData) {
+    //    var deferred = $q.defer();
+    //    $http.post(serviceBase + 'api/account/registerexternal', registerExternalData).success(function (response) {
+    //        localStorageService.set('authorizationData', { token: response.access_token, userName: response.userName, refreshToken: "", useRefreshTokens: false });
+    //        _authentication.isAuth = true;
+    //        _authentication.userName = response.userName;
+    //        _authentication.useRefreshTokens = false;
+    //        deferred.resolve(response);
+    //    }).error(function (err, status) {
+    //        _logOut();
+    //        deferred.reject(err);
+    //    });
+    //    return deferred.promise;
+    //};
+
     var _registerExternal = function (registerExternalData) {
 
         var deferred = $q.defer();
-
         $http.post(serviceBase + 'api/account/registerexternal', registerExternalData).success(function (response) {
-
-            localStorageService.set('authorizationData', { token: response.access_token, userName: response.userName, refreshToken: "", useRefreshTokens: false });
-
-            _authentication.isAuth = true;
-            _authentication.userName = response.userName;
-            _authentication.useRefreshTokens = false;
-
+            //localStorageService.set('authorizationData', { token: response.access_token, userName: response.userName, refreshToken: "", useRefreshTokens: false });
+            //_authentication.isAuth = true;
+            //_authentication.userName = response.userName;
+            //_authentication.useRefreshTokens = false;
             deferred.resolve(response);
 
         }).error(function (err, status) {
@@ -235,8 +238,7 @@ app.factory('authService', ['$http', '$q', 'localStorageService', 'ngAuthSetting
     // NEW
     authServiceFactory.setAuthData = _setAuthData;
 
-    //authServiceFactory.obtainAccessToken = _obtainAccessToken;
-    authServiceFactory.obtainAccessToken = _obtainAccessTokenUsingCustomGrant;
+    authServiceFactory.obtainAccessToken = _obtainAccessToken;
     authServiceFactory.externalAuthData = _externalAuthData;
     authServiceFactory.registerExternal = _registerExternal;
 
