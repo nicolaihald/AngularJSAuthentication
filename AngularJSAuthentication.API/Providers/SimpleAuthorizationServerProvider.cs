@@ -44,8 +44,8 @@ namespace AngularJSAuthentication.API.Providers
             {
                 //Remove the comments from the below line context.SetError, and invalidate context 
                 //if you want to force sending clientId/secrects once obtain access tokens. 
-                //context.Validated();
-                context.SetError("invalid_clientId", "ClientId should be sent.");
+                context.Validated();
+                //context.SetError(AuthConstants.InvalidClientId, "ClientId should be sent.");
                 return Task.FromResult<object>(null);
             }
 
@@ -56,7 +56,7 @@ namespace AngularJSAuthentication.API.Providers
 
             if (client == null)
             {
-                context.SetError("invalid_clientId", string.Format("Client '{0}' is not registered in the system.", context.ClientId));
+                context.SetError(AuthConstants.InvalidClientId, string.Format("Client '{0}' is not registered in the system.", context.ClientId));
                 return Task.FromResult<object>(null);
             }
 
@@ -64,14 +64,14 @@ namespace AngularJSAuthentication.API.Providers
             {
                 if (string.IsNullOrWhiteSpace(clientSecret))
                 {
-                    context.SetError("invalid_clientId", "Client secret should be sent.");
+                    context.SetError(AuthConstants.InvalidClientId, "Client secret should be sent.");
                     return Task.FromResult<object>(null);
                 }
                 else
                 {
                     if (client.Secret != Helper.GetHash(clientSecret))
                     {
-                        context.SetError("invalid_clientId", "Client secret is invalid.");
+                        context.SetError(AuthConstants.InvalidClientId, "Client secret is invalid.");
                         return Task.FromResult<object>(null);
                     }
                 }
@@ -79,7 +79,7 @@ namespace AngularJSAuthentication.API.Providers
 
             if (!client.Active)
             {
-                context.SetError("invalid_clientId", "Client is inactive.");
+                context.SetError(AuthConstants.InvalidClientId, "Client is inactive.");
                 return Task.FromResult<object>(null);
             }
 
@@ -114,7 +114,7 @@ namespace AngularJSAuthentication.API.Providers
             var props = new AuthenticationProperties(new Dictionary<string, string>
                 {
                     {
-                        AuthConstants.ClientIdKey, (context.ClientId == null) ? string.Empty : context.ClientId
+                        AuthConstants.ClientIdKey, context.ClientId ?? string.Empty
                     },
                     {
                         "userName", context.UserName
@@ -133,7 +133,7 @@ namespace AngularJSAuthentication.API.Providers
 
             if (originalClient != currentClient)
             {
-                context.SetError("invalid_clientId", "Refresh token is issued to a different clientId.");
+                context.SetError(AuthConstants.ClientIdKey, "Refresh token is issued to a different clientId.");
                 return Task.FromResult<object>(null);
             }
 
